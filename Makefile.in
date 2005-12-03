@@ -80,7 +80,7 @@ xtrace_LDFLAGS =  -Wl,-z,syms
 # decodexnumbers_SOURCES = masktosymbols.c
 # decodexnumbers_LDFLAGS = -Wl,-z,syms
 
-noinst_HEADERS = xtrace.h requests.inc events.inc
+noinst_HEADERS = xtrace.h requests.inc events.inc shape.inc bigrequest.inc
 
 man_MANS = xtrace.1
 
@@ -334,6 +334,13 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
+copyauth.o: copyauth.c config.h xtrace.h
+main.o: main.c config.h xtrace.h
+parse.o: parse.c config.h xtrace.h requests.inc events.inc shape.inc \
+	bigrequest.inc
+x11client.o: x11client.c config.h xtrace.h
+x11common.o: x11common.c config.h xtrace.h
+x11server.o: x11server.c config.h xtrace.h
 
 info-am:
 info: info-am
