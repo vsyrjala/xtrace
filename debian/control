@@ -14,3 +14,5 @@ Description: trace communication between X client and server
  you hook it between one or more X11 clients and an X server and
  it prints the requests going from client to server and the replies,
  events and errors going the other way.
+ .
+ Homepage: http://xtrace.alioth.debian.org/
