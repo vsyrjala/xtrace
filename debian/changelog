@@ -1,3 +1,10 @@
+xtrace (0.6-1) UNRELEASED; urgency=low
+
+  * pretty print some more commands
+  * add support for XFree86-VidModeExtension
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 24 Jul 2006 17:30:21 +0200
+
 xtrace (0.5-1) unstable; urgency=low
 
   * fix RANDR query version
