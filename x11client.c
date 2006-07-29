@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,9 +15,9 @@
  */
 #include <config.h>
 
-#define GNU_SOURCE 1
 #include <assert.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <sys/socket.h>
@@ -47,23 +46,24 @@ int connectToServer(const char *displayname,int family,const char *hostname,int 
 	}
 	if( family == AF_INET ) {
 		struct sockaddr_in addr;
+		struct addrinfo hints;
+		struct addrinfo *res;
 		int tmp=1;
+		int r;
 
-		addr.sin_family = AF_INET;
-		addr.sin_port = calculateTCPport(display);
-		if( isdigit(hostname[0]) )
-			addr.sin_addr.s_addr = inet_addr(hostname);
-		else {
-			struct hostent *h =
-				gethostbyname2(hostname,family);
-			if( h == NULL ) {
-				close(fd);
-				fprintf(stderr,"Error resolving hostname '%s' taken from '%s'\n",hostname,displayname);
-				return -1;
-			}
-			assert( h->h_length == sizeof(addr.sin_addr));
-			memcpy(&addr.sin_addr,h->h_addr_list[0],sizeof(addr.sin_addr));
+		memset(&hints,0,sizeof(struct addrinfo));
+		hints.ai_family = family;
+		hints.ai_socktype = SOCK_STREAM;
+		r = getaddrinfo(hostname, NULL, &hints, &res);
+		if( r != 0 ) {
+			close(fd);
+			fprintf(stderr,"Error resolving hostname '%s' taken from '%s'\nError was: %s\n",hostname,displayname,gai_strerror(r));
+			return -1;
 		}
+		assert( res->ai_addrlen == sizeof(addr));
+		memcpy(&addr,res->ai_addr,sizeof(addr));
+		freeaddrinfo(res);
+		addr.sin_port = calculateTCPport(display);
 		setsockopt(fd,SOL_SOCKET,SO_KEEPALIVE,(char *)&tmp,sizeof(tmp));
 		if( connect(fd,(struct sockaddr*)&addr,sizeof(addr)) < 0 ) {
 			int e = errno;

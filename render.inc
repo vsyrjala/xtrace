@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -32,7 +31,7 @@
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL SuSE
  * BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * Author:  Keith Packard, SuSE, Inc.
@@ -254,7 +253,7 @@ static const struct parameter listTrapezoid[] = {
 #define ft_LISTofTRAPEZOID ft_LISTofStruct, (void*)listTrapezoid
 
 
-/* 
+/*
  * requests and replies
  */
 static const struct parameter parameterRenderQueryVersion[] = {
@@ -549,15 +548,6 @@ static const struct parameter parameterRenderQueryFilters[] = {
 	{	 4,	"drawable",	ft_DRAWABLE,	NULL},
 	EOP
 };
-
-
-static const struct parameter listSTRING8[] = {
-	LC(1),
-	{	0,	"strlen",	ft_COUNT8,	NULL},
-	{	1,	"name",		ft_STRING8,	NULL},
-	EOP
-};
-#define ft_LISTofSTRING8 ft_LISTofVarStruct,(void*)listSTRING8
 
 static const struct parameter returnRenderQueryFilters[] = {
 	{	 8,	"numAliases",	ft_CARD32,	NULL},

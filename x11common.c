@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,9 +15,8 @@
  */
 #include <config.h>
 
-#define _GNU_SOURCE 1
-
 #include <assert.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -39,7 +37,7 @@ const char *parseDisplay(const char *displayname,
 	const char *p = displayname;
 	const char *q;
 
-/* Xlib reads display names as 
+/* Xlib reads display names as
  *            [protocol/] [hostname] : displaynumber [.screennumber]
  */
 
@@ -118,6 +116,6 @@ const char *generateSocketName(struct sockaddr_un *addr,int display) {
 	return NULL;
 }
 
-u_int16_t calculateTCPport(int display) {
+uint16_t calculateTCPport(int display) {
 	return htons(X_TCP_PORT+display);
 }

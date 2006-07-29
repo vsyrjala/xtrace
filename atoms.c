@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,6 +17,7 @@
 
 #include <assert.h>
 #include <values.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -51,7 +51,7 @@ static const char *constant_atoms[CONSTANT_ATOMS] = {
 
 struct atom {
 	struct atom *left,*right;
-	u_int32_t atom;
+	uint32_t atom;
 	char name[];
 };
 /* TODO: add connection specific values, too, to be activated on mismatch */
@@ -67,7 +67,7 @@ struct atom *newAtom(const char *name, size_t len) {
 	return atom;
 }
 
-const char *getAtom(struct connection *c UNUSED, u_int32_t atom) {
+const char *getAtom(struct connection *c UNUSED, uint32_t atom) {
 	struct atom *p;
 	if( atom <= 0 )
 		return NULL;
@@ -85,9 +85,9 @@ const char *getAtom(struct connection *c UNUSED, u_int32_t atom) {
 	}
 	return NULL;
 }
-void internAtom(struct connection *c UNUSED, u_int32_t atom, struct atom *data) {
+void internAtom(struct connection *c UNUSED, uint32_t atom, struct atom *data) {
 	struct atom **p;
-	u_int32_t lastmask;
+	uint32_t lastmask;
 
 	if( atom <= CONSTANT_ATOMS ) {
 		free(data);
@@ -100,7 +100,7 @@ void internAtom(struct connection *c UNUSED, u_int32_t atom, struct atom *data) 
 	p = &atom_root;
 	lastmask = 0;
 	while( *p != NULL ) {
-		u_int32_t k;
+		uint32_t k;
 		k = (*p)->atom;
 		if( atom == k ) {
 			if( strcmp((*p)->name, data->name) != 0 )
@@ -109,7 +109,7 @@ void internAtom(struct connection *c UNUSED, u_int32_t atom, struct atom *data) 
 			return;
 		} else if( atom > k ) {
 			p = &(*p)->right;
-		} else { /* atom < k */ 
+		} else { /* atom < k */
 			p = &(*p)->left;
 		}
 	}
