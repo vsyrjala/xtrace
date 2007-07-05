@@ -36,7 +36,7 @@ clean:
 	dh_testroot
 	rm -f build-stamp
 
-	-$(MAKE) distclean
+	if [ -e config.status ] ; then $(MAKE) distclean ; fi
 	dh_clean
 
 install: build
