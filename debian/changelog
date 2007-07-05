@@ -1,3 +1,12 @@
+xtrace (0.7.0-1) unstable; urgency=low
+
+  * do not ignore make distclean errors
+  * new --outfile and --buffered options
+    (default output is now also unbuffered when output is no terminal)
+  * update documentation about understood extensions
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  6 Sep 2006 12:39:34 +0200
+
 xtrace (0.6.0-1) unstable; urgency=low
 
   * pretty print some more commands
