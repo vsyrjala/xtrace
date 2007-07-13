@@ -8,7 +8,7 @@ Standards-Version: 3.7.2
 Package: xtrace
 Architecture: any
 Depends: ${shlibs:Depends}
-Suggests: xbase-clients
+Suggests: xauth | xbase-clients
 Description: trace communication between X client and server
  What strace is for system calls, xtrace is for X11 connections:
  you hook it between one or more X11 clients and an X server and
