@@ -37,8 +37,10 @@ static inline unsigned int padded(unsigned int s) {
 	return (s+3)&(~3);
 }
 
-#define CARD16(bigendian,buffer,ofs) ((bigendian)?(buffer[ofs]*256+buffer[ofs+1]):(buffer[ofs+1]*256+buffer[ofs]))
-#define CARD32(bigendian,buffer,ofs) ((bigendian)?(((buffer[ofs]*256+buffer[ofs+1])*256+buffer[ofs+2])*256+buffer[ofs+3]):(buffer[ofs]+256*(buffer[ofs+1]+256*(buffer[ofs+2]+256*buffer[ofs+3]))))
+#define U256 ((unsigned int)256)
+#define UL256 ((unsigned long)256)
+#define CARD16(bigendian,buffer,ofs) ((bigendian)?(buffer[ofs]*U256+buffer[ofs+1]):(buffer[ofs+1]*U256+buffer[ofs]))
+#define CARD32(bigendian,buffer,ofs) ((bigendian)?(((buffer[ofs]*U256+buffer[ofs+1])*UL256+buffer[ofs+2])*UL256+buffer[ofs+3]):(buffer[ofs]+UL256*(buffer[ofs+1]+UL256*(buffer[ofs+2]+U256*buffer[ofs+3]))))
 #define clientCARD32(ofs) CARD32(c->bigendian,c->clientbuffer,ofs)
 #define clientCARD16(ofs) CARD16(c->bigendian,c->clientbuffer,ofs)
 #define clientCARD8(ofs) c->clientbuffer[ofs]
@@ -62,7 +64,7 @@ struct constant {
 };
 
 typedef bool request_func(struct connection*,bool,bool,struct expectedreply *);
-typedef void reply_func(struct connection*,bool*,bool*,void*);
+typedef void reply_func(struct connection*,bool*,bool*,int,void*);
 
 struct request {
 	const char *name;
@@ -104,10 +106,58 @@ void free_usedextensions(struct usedextension *e) {
 	}
 }
 
+struct unknownextension {
+	struct unknownextension *next;
+	const char *name;
+	size_t namelen;
+	unsigned char major_opcode;
+	unsigned char first_event;
+	unsigned char first_error;
+};
+
+void free_unknownextensions(struct unknownextension *e) {
+	while( e != NULL ) {
+		struct unknownextension *h = e->next;
+		free(e);
+		e = h;
+	}
+}
+
+static struct unknownextension *register_unknown_extension(struct connection *c, const unsigned char *name, size_t namelen) {
+	const struct unknownextension *e;
+	struct unknownextension *n;
+
+	for( e = c->unknownextensions ; e != NULL ; e = e->next ) {
+		if( e->namelen != namelen )
+			continue;
+		if( strncmp((char*)name, e->name, namelen) != 0 )
+			continue;
+		return NULL;
+	}
+	for( n = c->waiting ; n != NULL ; n = n->next ) {
+		if( n->namelen != namelen )
+			continue;
+		if( strncmp((char*)name, n->name, namelen) != 0 )
+			continue;
+		return n;
+	}
+	n = malloc(sizeof(struct unknownextension));
+	if( n == NULL )
+		abort();
+	n->name = strndup((char*)name, namelen);
+	if( n->name == NULL )
+		abort();
+	n->namelen = namelen;
+	n->next = c->waiting;
+	c->waiting = n;
+	return n;
+}
+
 struct expectedreply {
 	struct expectedreply *next;
 	uint64_t seq;
 	const struct request *from;
+	int datatype;
 	void *data;
 };
 
@@ -131,7 +181,6 @@ static void print_bitfield(const char *name,const struct constant *constants, un
 			first = false;
 			fputs(c->name,out);
 		}
-		
 	}
 	if( first )
 		fputs(zeroname,out);
@@ -862,7 +911,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 			break;
 		}
 		assert( p->type <= ft_BITMASK32);
-		
+
 		if( ((ofs+4)&~3) > len )
 			/* this field is missing */
 			continue;
@@ -1008,7 +1057,15 @@ static bool requestQueryExtension(struct connection *c, bool pre, bool bigreques
 		return false;
 	if( c->clientignore <= 8 )
 		return false;
+	reply->datatype = 0;
 	reply->data = find_extension(c->clientbuffer+8,c->clientignore-8);
+	if( reply->data == NULL ) {
+		size_t len = c->clientignore-8;
+		if( len > clientCARD16(4) )
+			len = clientCARD16(4);
+		reply->data = register_unknown_extension(c, c->clientbuffer+8, len);
+		reply->datatype = 1;
+	}
 	return false;
 }
 
@@ -1023,13 +1080,13 @@ static bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UN
 	len = clientCARD16(4);
 	if( c->clientignore < (unsigned int)8 + len)
 		return false;
-	reply->data = newAtom(c->clientbuffer+8,len);
+	reply->data = newAtom((const char*)c->clientbuffer+8,len);
 	return false;
 }
 
 /* Reactions to some replies */
 
-static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontremove,void *data UNUSED) {
+static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontremove,int datatype UNUSED,void *data UNUSED) {
 	unsigned int seq = serverCARD16(2);
 	if( serverCARD8(1) == 0 ) {
 
@@ -1038,8 +1095,26 @@ static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontr
 	} else
 		*dontremove = true;
 }
-static void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,void *data) {
-	if( data != NULL && serverCARD8(8) != 0) {
+static void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype,void *data) {
+	/* nothing to do if the extension is not available */
+	if( serverCARD8(8) == 0)
+		return;
+
+	if( datatype == 1 && data != NULL ) {
+		struct unknownextension *n, **e = &c->waiting;
+		while( *e != NULL && *e != data )
+			e = &(*e)->next;
+		if( *e != NULL ) {
+			data = NULL;
+			n = *e; *e = n->next;
+			n->next = c->unknownextensions;
+			c->unknownextensions = n;
+			n->major_opcode = serverCARD8(9);
+			n->first_event = serverCARD8(10);
+			n->first_error = serverCARD8(11);
+		}
+	}
+	if( datatype == 0 && data != NULL ) {
 		struct usedextension *u;
 		u = malloc(sizeof(struct usedextension));
 		if( u == NULL )
@@ -1057,7 +1132,7 @@ static void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *d
 	}
 }
 
-static void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,void *data) {
+static void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype UNUSED,void *data) {
 	uint32_t atom;
 	if( data == NULL )
 		return;
@@ -1079,9 +1154,9 @@ static inline void free_expectedreplylist(struct expectedreply *r) {
 	}
 }
 
-static inline const struct request *find_extension_request(struct connection *c,unsigned char req, const char **extension) {
+static inline const struct request *find_extension_request(struct connection *c,unsigned char req,unsigned char subreq,const char **extension) {
 	struct usedextension *u;
-	unsigned char subreq = clientCARD8(1);
+	struct unknownextension *e;
 
 	for( u = c->usedextensions; u != NULL ; u = u->next ) {
 		if( req != u->major_opcode )
@@ -1092,12 +1167,19 @@ static inline const struct request *find_extension_request(struct connection *c,
 		else
 			return NULL;
 	}
+	for( e = c->unknownextensions ; e != NULL ; e = e->next ) {
+		if( req == e->major_opcode ) {
+			*extension = e->name;
+			break;
+		}
+	}
 
 	return NULL;
 }
 
 static inline void print_client_request(struct connection *c,bool bigrequest) {
 	unsigned char req = clientCARD8(0);
+	unsigned char subreq = clientCARD8(1);
 	const struct request *r;
 	const char *extensionname = "";
 	bool ignore;
@@ -1112,7 +1194,7 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 	if( len > c->clientcount )
 		len = c->clientcount;
 
-	r = find_extension_request(c,req,&extensionname);
+	r = find_extension_request(c,req,subreq,&extensionname);
 	if( r == NULL ) {
 		if( req < NUM(requests) )
 			r = &requests[req];
@@ -1124,9 +1206,16 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 	else
 		ignore = r->request_func(c,true,bigrequest,NULL);
 	if( !ignore ) {
-		fprintf(out,"%03d:<:%04x:%3u: %sRequest(%hhu): %s ",
+		if( extensionname[0] == '\0' )
+			fprintf(out,"%03d:<:%04x:%3u: Request(%hhu): %s ",
 				c->id,(unsigned int)(c->seq),c->clientignore,
-				extensionname,req,
+				req, r->name
+		      );
+		else
+			fprintf(out,"%03d:<:%04x:%3u: %s-Request(%hhu,%hhu): %s ",
+				c->id, (unsigned int)(c->seq),
+				c->clientignore,
+				extensionname, req, subreq,
 				r->name
 		      );
 		if( r->parameters != NULL )
@@ -1177,12 +1266,12 @@ static inline void print_server_reply(struct connection *c) {
 	seq = serverCARD16(2);
 	for( lastp = &c->expectedreplies ;
 			(replyto=*lastp) != NULL ; lastp=&replyto->next){
-		if( (replyto->seq & 0xFFFFFFFF ) == seq ) {
+		if( (replyto->seq & 0xFFFF ) == seq ) {
 			bool ignore = false, dontremove = false;
 
 			assert( replyto->from != NULL);
 			if( replyto->from->reply_func != NULL )
-				replyto->from->reply_func(c,&ignore,&dontremove,replyto->data);
+				replyto->from->reply_func(c,&ignore,&dontremove,replyto->datatype,replyto->data);
 
 			if( !ignore ) {
 				fprintf(out,"%03d:>:0x%04x:%u: Reply to %s: ", c->id, seq, (unsigned int)c->serverignore,replyto->from->name);
@@ -1202,7 +1291,6 @@ static inline void print_server_reply(struct connection *c) {
 	}
 	fprintf(out,"%03d:>:%04x:%u: unexpected reply\n",
 			c->id, seq, c->serverignore);
-			
 }
 
 const char *errors[] = {
@@ -1217,6 +1305,8 @@ static inline void print_server_error(struct connection *c) {
 	unsigned int cmd = serverCARD8(1);
 	struct usedextension *u;
 	const char *errorname;
+	uint16_t seq;
+	struct expectedreply *replyto,**lastp;
 
 	if( cmd < NUM(errors) )
 		errorname = errors[cmd];
@@ -1234,14 +1324,24 @@ static inline void print_server_error(struct connection *c) {
 		}
 
 	}
-	fprintf(out,"%03d:>:%u:Error %hhu=%s: major=%u, minor=%u, bad=%u\n",
+	seq = (unsigned int)serverCARD16(2);
+	fprintf(out,"%03d:>:%x:Error %hhu=%s: major=%u, minor=%u, bad=%u\n",
 			c->id,
-			(int)serverCARD16(2),
+			seq,
 			cmd,
 			errorname,
 			(int)serverCARD16(8),
 			(int)serverCARD8(10),
 			(int)serverCARD32(4));
+	/* don't wait for any answer */
+	for( lastp = &c->expectedreplies ;
+			(replyto=*lastp) != NULL ; lastp=&replyto->next){
+		if( (replyto->seq & 0xFFFF ) == seq ) {
+			*lastp = replyto->next;
+			free(replyto);
+			return;
+		}
+	}
 }
 
 void parse_client(struct connection *c) {
@@ -1415,6 +1515,7 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 #include "randr.inc"
 #include "mitshm.inc"
 #include "xf86vidmode.inc"
+#include "xf86bigfont.inc"
 
 #define EXT(a,b) { a , sizeof(a)-1, \
 	extension ## b, NUM(extension ## b), \
@@ -1426,7 +1527,8 @@ struct extension extensions[] = {
 	EXT("RENDER",RENDER),
 	EXT("SHAPE",SHAPE),
 	EXT("BIG-REQUESTS",BIGREQUEST),
-	EXT("XFree86-VidModeExtension",XF86VidMode)
+	EXT("XFree86-VidModeExtension",XF86VidMode),
+	EXT("XFree86-Bigfont",XF86Bigfont)
 };
 #undef EXT
 
@@ -1435,9 +1537,11 @@ struct extension *find_extension(u8 *name,size_t len) {
 	for( i = 0 ; i < NUM(extensions) ; i++ ) {
 		if( len < extensions[i].namelen )
 			continue;
-		if( strncmp(extensions[i].name,name,len) == 0 )
+// TODO: why only compare up the length here?
+		if( strncmp((const char*)extensions[i].name,(const char*)name,len) == 0 )
 			return extensions + i;
 	}
+
 	return NULL;
 }
 
