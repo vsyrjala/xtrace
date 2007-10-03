@@ -1,3 +1,9 @@
+xtrace (0.8.1-1) UNRELEASED; urgency=low
+
+  * make some overlooked x and y values UINT instead of CARD
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  3 Oct 2007 12:04:04 +0200
+
 xtrace (0.8.0-1) unstable; urgency=low
 
   * new release:
