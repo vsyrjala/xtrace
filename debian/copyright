@@ -177,7 +177,7 @@ without prior written authorization from the X Consortium.
 The file render.inc is based on /usr/include/X11/extensions/render{,proto}.h,
 which have the following notice:
 
-Copyright © 2000 SuSE, Inc.
+Copyright Â© 2000 SuSE, Inc.
 
 Permission to use, copy, modify, distribute, and sell this software and its
 documentation for any purpose is hereby granted without fee, provided that
@@ -199,11 +199,11 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 Author:  Keith Packard, SuSE, Inc.
 
 The file randr.inc is based on /usr/include/X11/extensions/randr{,proto}.h which state:
-Copyright © 2000 Compaq Computer Corporation
-Copyright © 2002 Hewlett-Packard Company
+Copyright Â© 2000 Compaq Computer Corporation
+Copyright Â© 2002 Hewlett-Packard Company
 and
-Copyright © 2000, Compaq Computer Corporation,
-Copyright © 2002, Hewlett Packard, Inc.
+Copyright Â© 2000, Compaq Computer Corporation,
+Copyright Â© 2002, Hewlett Packard, Inc.
 
 Permission to use, copy, modify, distribute, and sell this software and its
 documentation for any purpose is hereby granted without fee, provided that
@@ -241,9 +241,9 @@ and modified for xrandr1.2 based upon: /usr/share/doc/x11proto-randr-dev/randrpr
                            Intel Corporation
 
 from x11proto-randr-dev which states:
-Copyright © 2000 Compaq Computer Corporation
-Copyright © 2002 Hewlett-Packard Company
-Copyright © 2006 Intel Corporation
+Copyright Â© 2000 Compaq Computer Corporation
+Copyright Â© 2002 Hewlett-Packard Company
+Copyright Â© 2006 Intel Corporation
 
 Permission to use, copy, modify, distribute, and sell this software and its
 documentation for any purpose is hereby granted without fee, provided that
