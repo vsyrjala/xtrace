@@ -2,8 +2,8 @@ Source: xtrace
 Section: x11
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 4.0.0)
-Standards-Version: 3.7.2
+Build-Depends: debhelper (>= 5.0.0)
+Standards-Version: 3.7.3
 
 Package: xtrace
 Architecture: any
