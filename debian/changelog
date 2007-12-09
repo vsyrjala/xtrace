@@ -1,3 +1,9 @@
+xtrace (0.9.1-1) unstable; urgency=low
+
+  * bugfix release
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  9 Dec 2007 17:02:46 +0100
+
 xtrace (0.9.0-1) unstable; urgency=low
 
   * new release
