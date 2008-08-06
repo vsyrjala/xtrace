@@ -198,7 +198,8 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Author:  Keith Packard, SuSE, Inc.
 
-The file randr.inc is based on /usr/include/X11/extensions/randr{,proto}.h which state:
+The file randr.inc is based on /usr/include/X11/extensions/randr{,proto}.h
+which state:
 Copyright © 2000 Compaq Computer Corporation
 Copyright © 2002 Hewlett-Packard Company
 and
@@ -224,7 +225,8 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Author:  Jim Gettys, HP Labs, Hewlett-Packard, Inc.
 
-and modified for xrandr1.2 based upon: /usr/share/doc/x11proto-randr-dev/randrproto.txt.gz:
+and modified for xrandr1.2 based upon:
+/usr/share/doc/x11proto-randr-dev/randrproto.txt.gz:
                The X Resize, Rotate and Reflect Extension
                               Version 1.2
                                2006-4-13
@@ -263,7 +265,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 OF THIS SOFTWARE.
 
-The file mitshm.inc is based on /usr/include/X11/extensions/shmstr.h which states:
+The file mitshm.inc is based on /usr/include/X11/extensions/shmstr.h
+which states:
 Copyright 1989, 1998  The Open Group
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -286,7 +289,8 @@ Except as contained in this notice, the name of The Open Group shall not be
 used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from The Open Group.
 
-The file xfm86vidmode.inc is based on /usr/include/X11/extensions/xf86vmstr.h which states:
+The file xfm86vidmode.inc is based on /usr/include/X11/extensions/xf86vmstr.h
+which states:
 Copyright 1995  Kaleb S. KEITHLEY
 
 Permission is hereby granted, free of charge, to any person obtaining
