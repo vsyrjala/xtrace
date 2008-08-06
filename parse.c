@@ -817,7 +817,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 
 		switch( p->type ) {
 		 case ft_LASTMARKER:
-			 if( ofs == ROUND_32 )
+			 if( p->offse == ROUND_32 )
 				 lastofs = (lastofs+3)& ~3;
 			 else
 				 lastofs = ofs;
@@ -1517,6 +1517,10 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 #include "mitshm.inc"
 #include "xf86vidmode.inc"
 #include "xf86bigfont.inc"
+#include "dpms.inc"
+#include "saver.inc"
+#include "fixes.inc"
+#include "damage.inc"
 
 #define EXT(a,b) { a , sizeof(a)-1, \
 	extension ## b, NUM(extension ## b), \
@@ -1530,7 +1534,11 @@ struct extension extensions[] = {
 	EXT("SHAPE",SHAPE),
 	EXT("BIG-REQUESTS",BIGREQUEST),
 	EXT("XFree86-VidModeExtension",XF86VidMode),
-	EXT("XFree86-Bigfont",XF86Bigfont)
+	EXT("XFree86-Bigfont",XF86Bigfont),
+	EXT("DPMS",DPMS),
+	EXT("XFIXES",FIXES),
+	EXT("DAMAGE",DAMAGE),
+	EXT("MIT-SCREEN-SAVER",Saver)
 };
 #undef EXT
 
