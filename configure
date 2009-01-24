@@ -2014,7 +2014,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=xtrace
- VERSION=0.10.0
+ VERSION=0.10.1
 
 
 cat >>confdefs.h <<_ACEOF
