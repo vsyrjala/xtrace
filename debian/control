@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 5.0.0)
 Standards-Version: 3.8.0
-Vcs-Browser: http://alioth.debian.org/plugins/scmcvs/cvsweb.php/xtrace/?cvsroot=xtrace
+Vcs-Browser: http://alioth.debian.org/scm/viewvc.php/xtrace/?root=xtrace
 Vcs-Cvs: :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/xtrace xtrace
 Homepage: http://xtrace.alioth.debian.org/
 

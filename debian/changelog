@@ -4,6 +4,7 @@ xtrace (0.10.1-1) unstable; urgency=low
   - fix decoding of ConfigureWindow request (thanks to Yann Droneaud)
   - fix similar errors in RandrDeleteOutputProperty and
     XF86BigfontQueryVersion.
+  * fix Vcs-Browser field (Closes: 528289)
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Jan 2009 17:16:19 +0100
 
