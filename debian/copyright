@@ -1,10 +1,11 @@
 This package was debianized by Bernhard R. Link <brlink@debian.org> on
 Sun, 13 Nov 2005 15:10:04 +0100.
 
-Copyright Holder of the main program: Bernhard R. Link <brlink@debian.org>
+The main program is:
+Copyright (C) 2005,2006,2007,2008,2009 Bernhard R. Link
+Protocol files have additional copyright holders, see below.
 
 License:
-
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 2 as
    published by the Free Software Foundation.
@@ -21,7 +22,10 @@ License:
 On Debian systems, the complete text of the GNU General
 Public License can be found in `/usr/share/common-licenses/GPL-2'.
 
-The files request.inc and events.inc are based on Appendix B of the
+The file glx.proto is based on glx.inc, which is
+Copyright (C) 2008,2009 RALOVICH, Kristóf
+
+The files request.proto and events.poto are based on Appendix B of the
 		  X Window System Protocol
 		   X Consortium Standard
 		 X Version 11, Release 6.4
@@ -99,7 +103,7 @@ The invited reviewers who provided useful input are:
      Jeffery Vroom (Stellar)
 
 
-This file shape.inc is based on shape.txt.gz from xspecs package:
+This file shape.proto is based on shape.txt.gz from xspecs package:
 		  X Nonrectangular Window
 		  Shape Extension Protocol
 			Version 1.0
@@ -136,45 +140,7 @@ sortium shall not be used in advertising or otherwise to
 promote the sale, use or other dealings in this Software
 without prior written authorization from the X Consortium.
 
-This file bigrequest.inc is based on shape.txt.gz from xspecs package:
-  		   Big Requests Extension
-
-			Version 2.0
-		   X Consortium Standard
-		 X Version 11, Release 6.4
-
-		       Bob Scheifler
-		     X Consortium, Inc.
-Copyright (C) 1993, 1994 X Consortium
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documenta-
-tion files (the ``Software''), to deal in the Software with-
-out restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to
-whom the Software is furnished to do so, subject to the fol-
-lowing conditions:
-
-The above copyright notice and this permission notice shall
-be included in all copies or substantial portions of the
-Software.
-
-THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PUR-
-POSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE X CONSOR-
-TIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-OR OTHER DEALINGS IN THE SOFTWARE.
-
-Except as contained in this notice, the name of the X Con-
-sortium shall not be used in advertising or otherwise to
-promote the sale, use or other dealings in this Software
-without prior written authorization from the X Consortium.
-
-The file render.inc is based on /usr/include/X11/extensions/render{,proto}.h,
+The file render.proto is based on /usr/include/X11/extensions/render{,proto}.h,
 which have the following notice:
 
 Copyright © 2000 SuSE, Inc.
@@ -198,7 +164,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Author:  Keith Packard, SuSE, Inc.
 
-The file randr.inc is based on /usr/include/X11/extensions/randr{,proto}.h
+The file randr.proto is based on /usr/include/X11/extensions/randr{,proto}.h
 which state:
 Copyright © 2000 Compaq Computer Corporation
 Copyright © 2002 Hewlett-Packard Company
@@ -265,7 +231,7 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 OF THIS SOFTWARE.
 
-The file mitshm.inc is based on /usr/include/X11/extensions/shmstr.h
+The file mitshm.proto is based on /usr/include/X11/extensions/shmstr.h
 which states:
 Copyright 1989, 1998  The Open Group
 
@@ -289,7 +255,7 @@ Except as contained in this notice, the name of The Open Group shall not be
 used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from The Open Group.
 
-The file xfm86vidmode.inc is based on /usr/include/X11/extensions/xf86vmstr.h
+The file xfm86vidmode.proto is based on /usr/include/X11/extensions/xf86vmstr.h
 which states:
 Copyright 1995  Kaleb S. KEITHLEY
 
@@ -307,13 +273,13 @@ included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL Kaleb S. KEITHLEY BE LIABLE FOR ANY CLAIM, DAMAGES 
+IN NO EVENT SHALL Kaleb S. KEITHLEY BE LIABLE FOR ANY CLAIM, DAMAGES
 OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-Except as contained in this notice, the name of Kaleb S. KEITHLEY 
-shall not be used in advertising or otherwise to promote the sale, use 
+Except as contained in this notice, the name of Kaleb S. KEITHLEY
+shall not be used in advertising or otherwise to promote the sale, use
 or other dealings in this Software without prior written authorization
 from Kaleb S. KEITHLEY
 
