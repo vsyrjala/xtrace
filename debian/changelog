@@ -1,6 +1,6 @@
 xtrace (1.0.0~alpha1-1) experimental; urgency=low
 
-  * new release
+  * new pre-release
   - protocol specification no longer compiled in but read
     at run-time
   - support some small subset of the GLX extension
