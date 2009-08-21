@@ -1,3 +1,10 @@
+xtrace (1.0.0-1) unstable; urgency=low
+
+  * new release
+  - fix bug in terminating to early when running with a command
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 21 Aug 2009 17:59:51 +0200
+
 xtrace (1.0.0~alpha1-1) experimental; urgency=low
 
   * new pre-release
