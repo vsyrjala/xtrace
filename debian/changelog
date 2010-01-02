@@ -1,3 +1,9 @@
+xtrace (1.0.2-1) unstable; urgency=low
+
+  * fix SelectionNotify (thanks to Peter Collingbourne) (Closes: 563001)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 02 Jan 2010 12:52:05 +0100
+
 xtrace (1.0.1-1) unstable; urgency=low
 
   * new bugfix release
