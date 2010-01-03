@@ -10,7 +10,7 @@ Homepage: http://xtrace.alioth.debian.org/
 
 Package: xtrace
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: xauth
 Description: trace communication between X client and server
  What strace is for system calls, xtrace is for X11 connections:
