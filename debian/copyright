@@ -2,7 +2,8 @@ This package was debianized by Bernhard R. Link <brlink@debian.org> on
 Sun, 13 Nov 2005 15:10:04 +0100.
 
 The main program is:
-Copyright (C) 2005,2006,2007,2008,2009 Bernhard R. Link
+Copyright (C) 2005,2006,2007,2008,2009,2010 Bernhard R. Link
+Copyright (C) 2009,2010 Julien Cristau
 Protocol files have additional copyright holders, see below.
 
 License:
