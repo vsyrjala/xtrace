@@ -36,8 +36,8 @@ enum package_direction { TO_SERVER, TO_CLIENT };
 
 static void startline(struct connection *c, enum package_direction d, const char *format, ...) FORMAT(printf,3,4);
 
-static const bool print_counts = false;
-static const bool print_offsets = false;
+const bool print_counts;
+const bool print_offsets;
 
 static inline unsigned int padded(unsigned int s) {
 	return (s+3)&(~3);
@@ -365,6 +365,41 @@ static size_t printLISTofFIXED(struct connection *c,const uint8_t *buffer,size_t
 	putc(';',out);
 	return ofs;
 }
+
+static size_t printLISTofFIXED3232(struct connection *c, const uint8_t *buffer, size_t buflen, const struct parameter *p, size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( (buflen - ofs)/8 <= len )
+		len = (buflen - ofs)/8;
+
+	if( print_offsets )
+		fprintf(out,"[%d]", (int)ofs);
+	fprintf(out, "%s=", p->name);
+	while( len > 0 ) {
+		int32_t i32;
+		uint32_t u32;
+		double d;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...", out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',', out);
+			notfirst = true;
+			i32 = getCARD32(ofs);
+			u32 = getCARD32(ofs + 4);
+			d = i32 + (u32 / ((double)65536.0 * (double)65536.0)) ;
+			fprintf(out, "%.11f", d);
+		}
+		len--; ofs += 8; nr++;
+	}
+	putc(';', out);
+	return ofs;
+}
+
 
 static size_t printLISTofFLOAT32(struct connection *c, const uint8_t *buffer, size_t buflen, const struct parameter *p, size_t len, size_t ofs){
 	bool notfirst = false;
@@ -856,7 +891,27 @@ static size_t printLISTofVarStruct(struct connection *c,const uint8_t *buffer,si
 }
 
 /* buffer must have at least 32 valid bytes */
-static void print_event(struct connection *c,const unsigned char *buffer);
+static const struct event *find_event(struct connection *c, const unsigned char *buffe, const char **extension_name);
+static void print_event_data(struct connection *c, const unsigned char *buffer, size_t len, const struct event *event, const char *extension);
+
+static inline void print_event(struct connection *c, const unsigned char *buffer, size_t len) {
+	const struct event *event;
+	const char *name;
+	size_t l;
+
+	event = find_event(c, buffer, &name);
+	if( event != NULL && event->type == event_xge)
+		l = 32 + 4*getCARD32(4);
+	else
+		l = 32;
+
+	if( len < l ) {
+		// TODO: warn about incomplete?
+		return;
+	}
+
+	print_event_data(c, buffer, l, event, name);
+}
 
 static size_t print_parameters(struct connection *c,const unsigned char *buffer,unsigned int len, const struct parameter *parameters,bool bigrequest, struct stack *oldstack) {
 	const struct parameter *p;
@@ -1016,6 +1071,21 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofFIXED:
 			lastofs = printLISTofFIXED(c,buffer,len,p,stored,ofs);
 			continue;
+		 case ft_FIXED3232:
+			if( ofs + 8 > len )
+				continue;
+			if( print_offsets )
+				fprintf(out, "[%d]", (int)ofs);
+			fputs(p->name, out); putc('=', out);
+			i32 = getCARD32(ofs);
+			u32 = getCARD32(ofs + 4);
+			d = i32 + (u32 / ((double)65536.0 * (double)65536.0));
+			fprintf(out, "%.11f", d);
+			continue;
+		 case ft_LISTofFIXED3232:
+			lastofs = printLISTofFIXED3232(c, buffer, len, p,
+					stored, ofs);
+			continue;
 		 case ft_FLOAT32:
 			if( ofs + 4 > len )
 				continue;
@@ -1036,13 +1106,24 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 			if( print_offsets )
 				fprintf(out,"[%d]",(int)ofs);
 			fputs(p->name,out);putc('=',out);
-			i16 = getCARD32(ofs);
-			u16 = getCARD32(ofs + 2);
+			i16 = getCARD16(ofs);
+			u16 = getCARD16(ofs + 2);
 			fprintf(out,"%hd/%hu", i16, u16);
+			continue;
+		 case ft_FRACTION32_32:
+			if( ofs + 8 > len )
+				continue;
+			if( print_offsets )
+				fprintf(out,"[%d]",(int)ofs);
+			fputs(p->name,out);putc('=',out);
+			i32 = getCARD32(ofs);
+			u32 = getCARD32(ofs + 4);
+			fprintf(out,"%d/%u", i32, u32);
 			continue;
 		 case ft_EVENT:
 			if( len >= ofs + 32 )
-				print_event(c,buffer+ofs);
+				print_event(c, buffer + ofs, len - ofs);
+			// TODO: do something with the size here?
 			continue;
 		 case ft_ATOM:
 			if( ofs + 4 > len )
@@ -1215,8 +1296,11 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_SET:
 		 case ft_EVENT:
 		 case ft_FRACTION16_16:
+		 case ft_FRACTION32_32:
 		 case ft_FIXED:
 		 case ft_LISTofFIXED:
+		 case ft_FIXED3232:
+		 case ft_LISTofFIXED3232:
 		 case ft_FLOAT32:
 		 case ft_LISTofFLOAT32:
 			 assert(0);
@@ -1228,6 +1312,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 	pop(&newstack,oldstack);
 	return lastofs;
 }
+
 
 /* replace ra(GrabButton) in requests.inc by ra2(GrabButton)
  * and add this function and all
@@ -1355,26 +1440,43 @@ static inline void free_expectedreplylist(struct expectedreply *r) {
 	}
 }
 
-static inline const struct request *find_extension_request(struct connection *c,unsigned char req,unsigned char subreq,const char **extension) {
+static inline const struct extension *find_extension_by_opcode(struct connection *c, unsigned char req) {
 	struct usedextension *u;
-	struct unknownextension *e;
 
 	for( u = c->usedextensions; u != NULL ; u = u->next ) {
 		if( req != u->major_opcode )
 			continue;
-		*extension = u->extension->name;
-		if( subreq < u->extension->numsubrequests )
-			return u->extension->subrequests + subreq;
+		return u->extension;
+	}
+	return NULL;
+}
+
+static inline const char *find_unknown_extension(struct connection *c, unsigned char req) {
+	struct unknownextension *e;
+
+	for( e = c->unknownextensions ; e != NULL ; e = e->next ) {
+		if( req == e->major_opcode ) {
+			return e->name;
+		}
+	}
+	return NULL;
+}
+
+static inline const struct request *find_extension_request(struct connection *c,unsigned char req,unsigned char subreq,const char **extension) {
+	const struct extension *e;
+	const char *name;
+
+	e = find_extension_by_opcode(c, req);
+	if( e != NULL ) {
+		*extension = e->name;
+		if( subreq < e->numsubrequests )
+			return e->subrequests + subreq;
 		else
 			return NULL;
 	}
-	for( e = c->unknownextensions ; e != NULL ; e = e->next ) {
-		if( req == e->major_opcode ) {
-			*extension = e->name;
-			break;
-		}
-	}
-
+	name = find_unknown_extension(c, req);
+	if( name != NULL )
+		*extension = name;
 	return NULL;
 }
 
@@ -1446,10 +1548,94 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 	}
 }
 
+static inline void print_generic_event(struct connection *c, const unsigned char *buffer, size_t len, const struct event *event) {
+	unsigned long stackvalues[30];
+	struct stack stack;
+	stack.base = stackvalues;
+	stack.num = 30;
+	stack.ofs = 0;
+	uint8_t opcode = getCARD8(1);
+	uint16_t evtype = getCARD16(8);
+	const struct extension *extension;
+
+	extension = find_extension_by_opcode(c, opcode);
+	if( extension == NULL ) {
+		const char *name = find_unknown_extension(c, opcode);
+		if( name != NULL ) {
+			fprintf(out, "%s(%hhu) ", name, opcode);
+		} else {
+			fprintf(out, "unknown extension %hhu ", opcode);
+		}
+		print_parameters(c, buffer, len, event->parameters, false, &stack);
+		return;
+	}
+	fprintf(out, "%s(%hhu) ", extension->name, opcode);
+	if( evtype > extension->numxgevents
+			|| extension->xgevents[evtype].name == NULL ) {
+		fprintf(out, "unknown(%hu) ", evtype);
+		print_parameters(c, buffer, len,
+				event->parameters, false, &stack);
+	} else {
+		const struct event *xgevent = &extension->xgevents[evtype];
+		const struct parameter *parameters = xgevent->parameters;
+
+		if( parameters == NULL )
+			parameters = event->parameters;
+
+		fprintf(out, "%s(%hu) ", xgevent->name, evtype);
+		print_parameters(c, buffer, len, parameters, false, &stack);
+	}
+}
+
+static void print_event_data(struct connection *c, const unsigned char *buffer, size_t len, const struct event *event, const char *extension) {
+	uint8_t code = getCARD8(0);
+	unsigned long stackvalues[30];
+	struct stack stack;
+	stack.base = stackvalues;
+	stack.num = 30;
+	stack.ofs = 0;
+
+	if( (code & 0x80) != 0 )
+		fputs("(generated) ",out);
+	code &= 0x7F;
+	if( event == NULL ) {
+		fprintf(out, "unknown code %hhu", code);
+		// TODO: print data as LISTofCARD8 ?
+		return;
+	}
+	if( extension != NULL ) {
+		fputs(extension, out);
+		putc('-', out);
+	}
+	fprintf(out,"%s(%hhu) ", event->name, code);
+	switch( event->type ) {
+		case event_normal:
+			print_parameters(c, buffer, len,
+					event->parameters, false, &stack);
+			break;
+		case event_xge:
+			print_generic_event(c, buffer, len,
+					event);
+			break;
+	}
+}
+
 static inline void print_server_event(struct connection *c) {
+	const struct event *event;
+	const char *name;
+
+	event = find_event(c, c->serverbuffer, &name);
+	if( event != NULL && event->type == event_xge) {
+		if( c->servercount < 32 + 4*serverCARD32(4) ) {
+			/* wait till fully received */
+			return;
+		}
+		c->serverignore = 32 + 4*serverCARD32(4);
+	} else
+		c->serverignore = 32;
 
 	startline(c, TO_CLIENT, "%04llx: Event ", (unsigned long long)c->seq);
-	print_event(c,c->serverbuffer);
+	print_event_data(c, c->serverbuffer, c->serverignore, event, name);
 	putc('\n',out);
 }
 
@@ -1464,6 +1650,7 @@ static inline void print_server_reply(struct connection *c) {
 	stack.num = 30;
 	stack.ofs = 0;
 
+	c->serverignore = 32 + 4*serverCARD32(4);
 	len = c->serverignore;
 	if( len > c->servercount )
 		len = c->servercount;
@@ -1517,7 +1704,9 @@ static inline void print_server_error(struct connection *c) {
 	struct usedextension *u;
 	const char *errorname;
 	uint16_t seq;
-	struct expectedreply *replyto,**lastp;
+	struct expectedreply *replyto, **lastp;
+
+	c->serverignore = 32;
 	if( cmd < num_errors )
 		errorname = errors[cmd];
 	else {
@@ -1677,16 +1866,14 @@ void parse_server(struct connection *c) {
 			return;
 		switch( c->serverbuffer[0] ) {
 		 case 0: /* Error */
-			 c->serverignore = 32;
 			 print_server_error(c);
 			 break;
 		 case 1: /* Reply */
-			 c->serverignore = 32 + 4*serverCARD32(4);
 			 print_server_reply(c);
 			 break;
 		 default:
-			c->serverignore = 32;
 			print_server_event(c);
+			break;
 		}
 		return;
 	 case s_amlost:
@@ -1698,41 +1885,31 @@ void parse_server(struct connection *c) {
 const struct event *events;
 size_t num_events;
 
-static void print_event(struct connection *c,const unsigned char *buffer) {
-	const struct event *event;
+static const struct event *find_event(struct connection *c, const unsigned char *buffer, const char **extension_name) {
+	struct usedextension *u;
 	uint8_t code = getCARD8(0);
-	unsigned long stackvalues[30];
-	struct stack stack;
-	stack.base = stackvalues;
-	stack.num = 30;
-	stack.ofs = 0;
 
-	if( (code & 0x80) != 0 )
-		fputs("(generated) ",out);
 	code &= 0x7F;
-	if( code <= 1 || code > num_events ) {
-		struct usedextension *u = c->usedextensions;
-		while( u != NULL ) {
-			if( code >= u->first_event &&
-			    code-u->first_event < u->extension->numevents) {
-				event = u->extension->events +
-						(code-u->first_event);
-				break;
-			}
-			u = u->next;
+	/* first look in extensions, in case we are on an xserver that
+	 * uses some of the new core event codes for extensions */
+	for( u = c->usedextensions ; u != NULL ; u = u->next ) {
+		if( u->first_event == 0)
+			continue;
+		if( code >= u->first_event &&
+				code-u->first_event < u->extension->numevents) {
+			*extension_name = u->extension->name;
+			return u->extension->events +
+				(code - u->first_event);
 		}
-		if( u == NULL ) {
-			fprintf(out,"unknown code %hhu",code);
-			return;
-		} else {
-			fputs(u->extension->name, stdout);
-			putchar('-');
-		}
-	} else
-		event = &events[code];
-	fprintf(out,"%s(%hhu) ",event->name,code);
-	print_parameters(c,buffer,32,event->parameters,false,&stack);
+	}
+	if( code > 1 || code <= num_events ) {
+		*extension_name = NULL;
+		return &events[code];
+	}
+	return NULL;
+
 }
+
 
 const struct extension *extensions;
 size_t num_extensions;
@@ -1749,4 +1926,3 @@ const struct extension *find_extension(const uint8_t *name,size_t len) {
 
 	return NULL;
 }
-
