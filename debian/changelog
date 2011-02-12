@@ -1,3 +1,16 @@
+xtrace (1.2.0-1) unstable; urgency=low
+
+  * new release
+  - bugfixes
+  - support Composite (Closes: 601466)
+  - support XVideo
+  - support Sync
+  - improve GLX support
+  * change debhelper compat level to 7
+  * change standards-version to 3.9.1
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 12 Feb 2011 17:22:34 +0100
+
 xtrace (1.1.0-1) unstable; urgency=low
 
   * new release
