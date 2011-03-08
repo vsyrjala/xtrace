@@ -39,7 +39,7 @@
 /* This parses an file to generate the description how packets look like.
 */
 
-enum variable_type { vt_namespace = 0, vt_request, vt_response, vt_event, vt_type, vt_constants, vt_values, vt_struct, vt_COUNT };
+enum variable_type { vt_namespace = 0, vt_request, vt_response, vt_event, vt_setup, vt_type, vt_constants, vt_values, vt_struct, vt_COUNT };
 static const char * const typename[vt_COUNT] = {
 		"namespace", "request", "response", "event", "type", "constants", "values", "struct"};
 
@@ -186,6 +186,7 @@ struct namespace {
 	} *events;
 	int num_errors;
 	const char **errors;
+	struct variable *setup;
 	void *variables[vt_COUNT];
 	/* namespaces that can be used without prefix: */
 	int used_count;
@@ -246,6 +247,7 @@ static void variable_unref(struct variable *v) {
 	} else if( v->type == vt_type ) {
 		typespec_done(&v->t);
 	} else if( v->type == vt_struct || v->type == vt_request
+			|| v->type == vt_setup
 			|| v->type == vt_response || v->type == vt_event ) {
 		parameter_free(v->parameter);
 	} else
@@ -475,7 +477,7 @@ static void error(struct parser *parser, const char *fmt, ...) {
 	if( parser->last != NULL )
 		fprintf(stderr, "%s:%ld:%d: ", parser->current->filename,
 				parser->current->lineno,
-				1 + (parser->last - parser->buffer));
+				(int)(1 + (parser->last - parser->buffer)));
 	else
 		fprintf(stderr, "%s:%ld: ", parser->current->filename,
 				parser->current->lineno);
@@ -709,7 +711,7 @@ static void parse_errors(struct parser *parser) {
 		} else if( strcmp(name, "EOF") == 0 ) {
 			no_more_arguments(parser);
 			error(parser,
-"Missing END (begining at line %ld)", first_line);
+"Missing END (beginning at line %ld)", first_line);
 		}
 		no_more_arguments(parser);
 		name = string_add(name);
@@ -744,7 +746,7 @@ static unsigned long parse_number(struct parser *parser, const char *value) {
 
 		e = strrchr(value, ':');
 		if( e == NULL || ( e > value && *(e-1) == ':' ) ) {
-			error(parser, "Constants name and member must be seperated with a single colon!");
+			error(parser, "Constants name and member must be separated with a single colon!");
 			return 0;
 		}
 		v = strndup(value + 1, e - (value+1));
@@ -817,6 +819,8 @@ static bool parse_typespec(struct parser *parser, struct typespec *t) {
 
 			attribute = get_const_token(parser, false);
 			cv = find_variable(parser, vt_constants, attribute);
+			if( cv == NULL )
+				return false;
 			if( C(td, NEEDS_BITMASK) && ! cv->c.bitmask ) {
 				error(parser,
 "Not-BITMASK constants %s used for bitmask!",
@@ -844,6 +848,8 @@ static bool parse_typespec(struct parser *parser, struct typespec *t) {
 
 				attribute = get_const_token(parser, false);
 				cv = find_variable(parser, vt_constants, attribute);
+				if( cv == NULL )
+					return false;
 				t->data = cv;
 				cv->refcount++;
 			}
@@ -1286,6 +1292,34 @@ static void parse_request(struct parser *parser, bool template) {
 	}
 	if( !complete )
 		parse_parameters(parser, v, false);
+}
+
+static void parse_setup(struct parser *parser) {
+	const char *attribute;
+	struct variable *v = NULL;
+	struct namespace *n = parser->current->namespace;
+
+	assert( n != NULL );
+	if( n->extension != NULL || strcmp(n->name, "core") != 0 ) {
+		error(parser, "'SETUP' only allowed in namespace 'core'!");
+		return;
+	}
+	if( n->setup != NULL ) {
+		error(parser, "multiple 'SETUP' in the same namespace!");
+		return;
+	}
+	while( (attribute = get_const_token(parser, true)) != NULL ) {
+		error(parser, "Unknown SETUP attribute '%s'!",
+				attribute);
+		return;
+	}
+
+	v = add_var(parser, "", "setup", NULL, vt_setup);
+	if( v == NULL )
+		return;
+	n->setup = v;
+	v->refcount ++;
+	parse_parameters(parser, v, false);
 }
 
 static void parse_response(struct parser *parser, bool template) {
@@ -1996,6 +2030,8 @@ bool translate(struct parser *parser, const char *name) {
 			error(parser, "First command must be EXTENSION or NAMESPACE!");
 		} else if( command_is("USE") ) {
 			parse_use(parser);
+		} else if( command_is("SETUP") ) {
+			parse_setup(parser);
 		} else if( command_is("REQUESTS") ) {
 			parse_requests(parser);
 		} else if( command_is("EVENTS") ) {
@@ -2064,6 +2100,8 @@ bool parser_free(struct parser *parser) {
 		for( i = 0 ; i < ns->num_events ; i++ ) {
 			variable_unref(ns->events[i].event);
 		}
+		if( ns->setup != NULL )
+			variable_unref(ns->setup);
 		free(ns->events);
 		free(ns->errors);
 		free(ns->used);
@@ -2172,6 +2210,7 @@ static const void *variable_finalize(struct parser *parser, struct variable *v) 
 		return v->finalized;
 	}
 	if( v->type == vt_struct || v->type == vt_response ||
+			v->type == vt_setup ||
 			v->type == vt_request || v->type == vt_event ) {
 		struct unfinished_parameter *p, *todo, *startat;
 		do {
@@ -2343,6 +2382,11 @@ void finalize_everything(struct parser *parser) {
 		parser->error = true;
 		return;
 	}
+	if( core->setup == NULL ) {
+		fputs("No setup parser defined!\n", stderr);
+		parser->error = true;
+		return;
+	}
 	v = find_variable(parser, vt_request, "core::unknown");
 	unknownrequest = variable_finalize(parser, v);
 	v = find_variable(parser, vt_response, "core::unknown");
@@ -2401,6 +2445,7 @@ void finalize_everything(struct parser *parser) {
 	if( errors == NULL )
 		parser->error = true;
 	num_errors = core->num_errors;
+	setup_parameters = variable_finalize(parser, core->setup);
 }
 
 /*
