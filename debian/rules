@@ -19,10 +19,12 @@ endif
 
 config.status: configure
 	dh_testdir
-	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man CFLAGS="$(CFLAGS)"
+	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
+		--prefix=/usr --mandir=\$${prefix}/share/man \
+		--disable-dependency-tracking \
+		CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs"
 
 build: build-stamp
-
 build-stamp:  config.status
 	dh_testdir
 
@@ -48,7 +50,7 @@ install: build
 
 # Build architecture-independent files here.
 binary-indep: build install
-# We have nothing to do by default.
+# We have nothing to do
 
 # Build architecture-dependent files here.
 binary-arch: build install
