@@ -7,8 +7,8 @@ struct constant {
 };
 struct event;
 
-typedef bool request_func(struct connection*,bool,bool,struct expectedreply *);
-typedef void reply_func(struct connection*,bool*,bool*,int,void*);
+typedef bool request_func(struct connection*, bool, bool, struct expectedreply *);
+typedef void reply_func(struct connection*, bool*, bool*, struct expectedreply *);
 typedef void event_func(struct connection *, const unsigned char *, const struct event *);
 
 struct request {
@@ -18,6 +18,8 @@ struct request {
 
 	request_func *request_func;
 	reply_func *reply_func;
+	/* stack values to be transfered to the reply code */
+	int record_variables;
 };
 struct event {
 	const char *name;
@@ -44,6 +46,7 @@ struct parameter {
 	 * applies to. If OFS_LATER it is after the last list item
 	 * in this parameter-list. */
 	size_t offse;
+	/* NULL means end of list */
 	const char *name;
 	enum fieldtype {
 		/* signed endian specific: */
@@ -75,7 +78,7 @@ struct parameter {
 		ft_LISTofStruct,
 		/*	- same but length is mininum length and
 		 *	  actual length is taken from end of last list
-		 *	  or LASTMARKER */
+		 *	  or LASTMARKER, unless there is a SIZESET */
 		ft_LISTofVarStruct,
 		/*	- like ENUM for last STORE, but constants
 		 *	  are of type (struct value*) interpreteted at this
@@ -96,6 +99,9 @@ struct parameter {
 		ft_IFATOM,
 		/* set end of last list manually, (for LISTofVarStruct) */
 		ft_LASTMARKER,
+		/* set the end of the current context, also change length
+		 * of a VarStruct: */
+		ft_SET_SIZE,
 		/* a ft_CARD32 looking into the ATOM list */
 		ft_ATOM,
 		/* always big endian */
@@ -118,11 +124,23 @@ struct parameter {
 		ft_FRACTION16_16,
 		/* dito 32 bit */
 		ft_FRACTION32_32,
-		/* set stored value to specific value */
+		/* a 64 bit number consisting of first the high 32 bit, then
+		 * the low 32 bti */
+		ft_INT32_32,
+		/* decrement stored value by specific value */
 		ft_DECREMENT_STORED,
+		ft_DIVIDE_STORED,
+		/* set stored value to specific value */
 		ft_SET
 		} type;
-	const struct constant *constants;
+	union parameter_option {
+		/* for integers and fields of integers */
+		const struct constant *constants;
+		/* for IFs, Structs, ... */
+		const struct parameter *parameters;
+		/* for LISTofVALUE */
+		const struct value *values;
+	} o;
 };
 struct value {
 	unsigned long flag;

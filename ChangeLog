@@ -1,3 +1,34 @@
+2011-02-12
+	* configure.ac: change monotonic clock cache-id to make autoconf happy
+2011-02-06
+	* add a 'DIVIDE_COUNT' directive
+	* enhance GLX support (GetVisualConfigs, GetFBConfigsSGIX,
+	  QueryServerString, ClientInfo)
+2011-01-29
+	* add a 'SIZE' directive to limit some structure to an explicit size
+	  (in VarStructs everything after that size is printed as unexpected
+	   data and otherwise ignored, also all field output or list length
+	   is automatically truncated to that value)
+	* allow 'ELSEIF STORED ...'
+	* use AC_PROG_CC_C99 to be sure to get C99 semantics
+2011-01-28
+	* allow to 'transfer' data from REQUEST to RESPONSE on the stack
+	* allow 'IF STORED ...' to compare stored value
+	* fix PUSH32 (was PUSH16 by mistake)
+	* error out early in case of not yet supported min-length 0
+2010-12-22
+	* Add INT32_32 type for a 64 bit integer stored in two 32 bit integers
+	* Add SYNC extension
+2010-12-21
+	* Add --monotonic-timestamps to print timestamps relative to system
+	start (or whatever CLOCK_MONOTONIC returns on your system).
+2010-10-26
+	* Add Composite (Thanks to Adam Endrodi)
+2010-10-20
+	* fix size of do-not-propagate-mask in GetWindowAttributes results
+	  (Thanks to Pierre-Yves Baccou for noticing).
+2010-06-20
+	* Add XVideo (version 2.2)
 2010-05-06
 	* Add DRI2 (up to version 1.3)
 2010-04-07

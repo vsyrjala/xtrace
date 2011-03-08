@@ -1,5 +1,5 @@
 /*  This file is part of "xtrace"
- *  Copyright (C) 2009 Bernhard R. Link
+ *  Copyright (C) 2009,2010,2011 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -93,6 +93,7 @@ static const struct base_type {
 	{ "BE32",		ft_BE32,		ALLOWS_CONSTANTS,	4},
 	{ "FRACTION16_16",	ft_FRACTION16_16,	0,	4},
 	{ "FRACTION32_32",	ft_FRACTION32_32,	0,	8},
+	{ "INT32_32",		ft_INT32_32,		ELEMENTARY,	8},
 	{ "FIXED",		ft_FIXED,		0,	4},
 	{ "FIXED1616",		ft_FIXED,		0,	4},
 	{ "FIXED3232",		ft_FIXED3232,		0,	8},
@@ -103,7 +104,7 @@ static const struct base_type {
 	{ "LISTofFLOAT32",    	ft_LISTofFLOAT32,	USES_STORE|SETS_NEXT,	0},
 	{ "PUSH8",		ft_PUSH8,		PUSHES,	1},
 	{ "PUSH16",		ft_PUSH16,		PUSHES,	2},
-	{ "PUSH32",		ft_PUSH16,		PUSHES,	4},
+	{ "PUSH32",		ft_PUSH32,		PUSHES,	4},
 	{ "STORE8",		ft_STORE8,		SETS_STORE,	1},
 	{ "STORE16",		ft_STORE16,		SETS_STORE,	2},
 	{ "STORE32",		ft_STORE32,		SETS_STORE,	4},
@@ -148,7 +149,7 @@ struct variable {
 					const char *condition;
 					bool isjunction;
 					struct unfinished_parameter *iftrue;
-					const void *finalized;
+					const struct parameter *finalized;
 				} special;
 			};
 		} *parameter;
@@ -165,7 +166,7 @@ struct variable {
 		} *values;
 		struct typespec t;
 	};
-	const void *finalized;
+	union parameter_option finalized;
 };
 
 struct namespace {
@@ -180,6 +181,7 @@ struct namespace {
 		bool has_response;
 		bool unsupported;
 		bool special;
+		int record_variables;
 		struct variable *request, *response;
 	} *requests;
 	int num_events[event_COUNT];
@@ -894,17 +896,35 @@ static struct unfinished_parameter *new_parameter_special(struct parser *parser,
    if nothing is accessed past the length in a struct,
    if things overlap, ...
 */
+
+struct parameter_state {
+	struct parameter_state *parent;
+	struct unfinished_parameter *junction;
+	size_t maxsize, minsize;
+	bool store_set,
+	     store_used,
+	     format_set,
+	     sizemarker_set,
+	     nextmarker_set,
+	     nextmarker_at_end_of_packet;
+};
+
+static void field_accessed(struct parser *parser, struct parameter_state *state, size_t ofs, size_t fieldlen) {
+	if( ofs == (size_t)-1 )
+		return;
+	if( ofs + fieldlen > state->minsize ) {
+		if( ofs + fieldlen > state->maxsize ) {
+			error(parser, "Accessing field past specified SIZE of %lu!", (unsigned long)state->maxsize);
+		}
+		state->minsize = ofs + fieldlen;
+	}
+	/* TODO: record here what areas are used to avoid overlaps and
+	 * gaps? */
+}
+
 static bool parse_parameters(struct parser *parser, struct variable *variable, bool needsnextmarker) {
 	long first_line = parser->current->lineno;
-	struct parameter_state {
-		struct parameter_state *parent;
-		struct unfinished_parameter *junction;
-		bool store_set,
-		     store_used,
-		     format_set,
-		     nextmarker_set,
-		     nextmarker_at_end_of_packet;
-	} *state;
+	struct parameter_state *state;
 	struct unfinished_parameter *parameters = NULL, **last = &parameters;
 
 	assert( variable->parameter == NULL );
@@ -914,6 +934,7 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 		oom(parser);
 		return false;
 	}
+	state->maxsize = SIZE_MAX;
 
 	while( get_next_line(parser, first_line) ) {
 		const char *position, *name;
@@ -955,18 +976,28 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 			state = s;
 			continue;
 		}
-		if( strcmp(position, "ELSEIF") == 0 ) {
+		if( strcmp(position, "IF") == 0 ||
+				strcmp(position, "ELSEIF") == 0 ) {
 			struct parameter_state *s;
-			const char *v, *condition;
 			struct unfinished_parameter *i;
+			const char *v, *condition;
 			enum fieldtype ft;
+			size_t fieldlen;
+			bool inelseif = strcmp(position, "ELSEIF") == 0;
 
-			if( state->parent == NULL )
-				error(parser, "ELSEIF without IF");
-			if( needsnextmarker && !state->nextmarker_set )
-				error(parser, "Missing NEXT (or LISTof...)!");
+			if( inelseif ) {
+				/* this is like an END here */
+				if( state->parent == NULL )
+					error(parser, "ELSEIF without IF");
+				if( needsnextmarker && !state->nextmarker_set )
+					error(parser, "Missing NEXT (or LISTof...)!");
+			}
+
 			v = get_const_token(parser, false);
-			number = parse_number(parser, v);
+			if( strcmp(v, "STORED") == 0 )
+				number = (size_t)-1; // compare store value
+			else
+				number = parse_number(parser, v);
 			v = get_const_token(parser, false);
 			if( v == NULL )
 				break;
@@ -974,6 +1005,7 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 				ft = ft_IFATOM;
 				v = get_const_token(parser, false);
 				condition = string_add(v);
+				fieldlen = 4;
 			} else if( strcmp(v, "CARD8") == 0 ) {
 				unsigned char c;
 
@@ -981,6 +1013,7 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 				v = get_const_token(parser, false);
 				c = parse_number(parser, v);
 				condition = string_add_l((const char*)&c, 1);
+				fieldlen = 1;
 			} else if( strcmp(v, "CARD16") == 0 ) {
 				unsigned char c[2];
 				unsigned long l;
@@ -991,6 +1024,7 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 				c[1] = l & 0xFF;
 				c[0] = l >> 8;
 				condition = string_add_l((const char*)c, 2);
+				fieldlen = 2;
 			} else if( strcmp(v, "CARD32") == 0 ) {
 				unsigned char c[4];
 				unsigned long l;
@@ -1003,84 +1037,30 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 				c[1] = (l >> 16) & 0xFF;
 				c[0] = l >> 24;
 				condition = string_add_l((const char*)c, 4);
+				fieldlen = 4;
 			} else {
 				error(parser, "unknown IF type '%s'!", v);
 				break;
 			}
 			no_more_arguments(parser);
-			last = &state->junction->next;
+			field_accessed(parser, state, number, fieldlen);
+			if( inelseif )
+				last = &state->junction->next;
 			i = new_parameter_special(parser, &last,
 					ft, number, condition);
-			s = state->parent;
+			if( inelseif ) {
+				s = state->parent;
+			} else {
+				s = state;
+				state = malloc(sizeof(*state));
+				if( state == NULL ) {
+					oom(parser);
+					break;
+				}
+			}
 			*state = *s;
 			state->parent = s;
 			state->junction = i;
-			if( i != NULL ) {
-				last = &i->special.iftrue;
-				i->special.isjunction = true;
-			}
-			continue;
-		}
-		if( strcmp(position, "IF") == 0 ) {
-			struct parameter_state *s;
-			struct unfinished_parameter *i;
-			const char *v, *condition;
-			enum fieldtype ft;
-
-			v = get_const_token(parser, false);
-			number = parse_number(parser, v);
-			v = get_const_token(parser, false);
-			if( v == NULL )
-				break;
-			if( strcmp(v, "ATOM") == 0 ) {
-				ft = ft_IFATOM;
-				v = get_const_token(parser, false);
-				condition = string_add(v);
-			} else if( strcmp(v, "CARD8") == 0 ) {
-				unsigned char c;
-
-				ft = ft_IF8;
-				v = get_const_token(parser, false);
-				c = parse_number(parser, v);
-				condition = string_add_l((const char*)&c, 1);
-			} else if( strcmp(v, "CARD16") == 0 ) {
-				unsigned char c[2];
-				unsigned long l;
-
-				ft = ft_IF16;
-				v = get_const_token(parser, false);
-				l = parse_number(parser, v);
-				c[1] = l & 0xFF;
-				c[0] = l >> 8;
-				condition = string_add_l((const char*)c, 2);
-			} else if( strcmp(v, "CARD32") == 0 ) {
-				unsigned char c[4];
-				unsigned long l;
-
-				ft = ft_IF32;
-				v = get_const_token(parser, false);
-				l = parse_number(parser, v);
-				c[3] = l & 0xFF;
-				c[2] = (l >> 8) & 0xFF;
-				c[1] = (l >> 16) & 0xFF;
-				c[0] = l >> 24;
-				condition = string_add_l((const char*)c, 4);
-			} else {
-				error(parser, "unknown IF type '%s'!", v);
-				break;
-			}
-			no_more_arguments(parser);
-			i = new_parameter_special(parser, &last,
-					ft, number, condition);
-			s = malloc(sizeof(*s));
-			if( s == NULL ) {
-				oom(parser);
-				break;
-			}
-			*s = *state;
-			s->parent = state;
-			s->junction = i;
-			state = s;
 			if( i != NULL ) {
 				last = &i->special.iftrue;
 				i->special.isjunction = true;
@@ -1135,6 +1115,20 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 					ft_DECREMENT_STORED, number, NULL);
 			continue;
 		}
+		if( strcmp(position, "DIVIDE_COUNT") == 0) {
+			const char *v;
+
+			if( !state->store_set ) {
+				error(parser, "store variable must be set before it can be changed!");
+			}
+			v = get_const_token(parser, false);
+			number = parse_number(parser, v);
+			no_more_arguments(parser);
+
+			new_parameter_special(parser, &last,
+					ft_DIVIDE_STORED, number, NULL);
+			continue;
+		}
 		if( strcmp(position, "RESET_COUNTER") == 0 ) {
 			no_more_arguments(parser);
 			state->store_set = false;
@@ -1142,6 +1136,57 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 
 			new_parameter_special(parser, &last,
 					ft_SET, INT_MAX, NULL);
+			continue;
+		}
+		if( strcmp(position, "SIZE") == 0 ) {
+			const char *v;
+			unsigned long t = 1;
+
+			v = get_const_token(parser, false);
+			if( v == NULL )
+				break;
+			if( strcmp(v, "STORE") == 0 || strcmp(v, "COUNT") == 0 ) {
+				if( !state->store_set )
+					error(parser, "store variable not yet set, so cannot be used!");
+				state->store_used = true;
+				number = (size_t)-1;
+			} else if( strcmp(v, "GET") == 0 ) {
+				// TODO: check if stack can have something...
+				number = parse_number(parser, v);
+				if( number >= 30 ) {
+					error(parser, "Absurd big stack index: %lu\n", number);
+					continue;
+				}
+				number |= 0x80000000;
+			} else {
+				number = parse_number(parser, v);
+				if( number > 65536 ) {
+					error(parser, "Absurd big number for length of substructure: %lu\n", number);
+					continue;
+				}
+				state->maxsize = number;
+				if( state->minsize > state->maxsize ) {
+					error(parser, "Setting size to %lu >= Data yet looked at up to %lu!", (unsigned long)state->maxsize, (unsigned long)state->minsize);
+					continue;
+				}
+			}
+			v = get_const_token(parser, true);
+			if( v != NULL ) {
+
+				if( strcmp(v, "TIMES") != 0 ) {
+					error(parser, "Unexpected argument '%s'!", v);
+					continue;
+				}
+				error(parser, "'TIMES' not yet supported!");
+				continue;
+				v = get_const_token(parser, false);
+				t = parse_number(parser, v);
+			}
+			no_more_arguments(parser);
+			state->sizemarker_set = true;
+
+			new_parameter_special(parser, &last,
+					ft_SET_SIZE, number, NULL);
 			continue;
 		}
 		if( strcmp(position, "NEXT") == 0 ) {
@@ -1214,6 +1259,9 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 		(*last)->regular.offse = number;
 		(*last)->regular.name = string_add(name);;
 		(*last)->regular.type = type;
+		/* TODO: better size estimate for structs and for lists
+		 * where the counter was explicitly set */
+		field_accessed(parser, state, number, type.base_type->size);
 		last = &(*last)->next;
 	}
 	error(parser, "missing END!");
@@ -1249,6 +1297,7 @@ static void parse_request(struct parser *parser, bool template) {
 	struct variable *v = NULL;
 	bool complete = false;
 	struct request_data *request;
+	long record = 0;
 
 	name = get_const_token(parser, false);
 	while( (attribute = get_const_token(parser, true)) != NULL ) {
@@ -1257,6 +1306,22 @@ static void parse_request(struct parser *parser, bool template) {
 			v = find_variable(parser, vt_request, t);
 			if( v == NULL )
 				return;
+		} else if( strcmp(attribute, "TRANSFER") == 0 ||
+				strcmp(attribute, "transfer") == 0 ) {
+			char *e;
+
+			attribute = get_const_token(parser, false);
+			if( attribute == NULL )
+				return;
+			record = strtoll(attribute, &e, 10);
+			if( *e != '\0' || record > 30 || record <= 0 )
+				error(parser, "Parse error: invalid number after 'transfer'!");
+		} else if( strncmp(attribute, "TRANSFER=", 9) == 0 ||
+				strncmp(attribute, "transfer=", 9) == 0 ) {
+			char *e;
+			record = strtoll(attribute + 9, &e, 10);
+			if( *e != '\0' || record > 30 || record <= 0 )
+				error(parser, "Parse error: invalid number after 'transfer='!");
 		} else {
 			error(parser, "Unknown REQUEST attribute '%s'!",
 					attribute);
@@ -1278,6 +1343,10 @@ static void parse_request(struct parser *parser, bool template) {
 			error(parser, "'%s' is already listed in REQUESTS, thus cannot be a template!", name);
 			return;
 		}
+		if( record > 0 ) {
+			error(parser, "TRANSFER not possible for templated");
+			return;
+		}
 	} else  {
 		if( request == NULL ) {
 			error(parser, "Unknow request '%s'! (Must be listed in REQUESTS or use templateREQUEST", name);
@@ -1292,6 +1361,13 @@ static void parse_request(struct parser *parser, bool template) {
 			error(parser, "Unexpected definition of unsupported request '%s::%s'!",
 					parser->current->namespace->name,
 					name);
+		}
+		if( record > 0 ) {
+			if( !request->has_response ) {
+				error(parser, "TRANSFER only possible if it RESPONDS!");
+				return;
+			}
+			request->record_variables = record;
 		}
 		request->request = v;
 		v->refcount ++;
@@ -1637,6 +1713,9 @@ static void parse_struct(struct parser *parser, bool list) {
 				error(parser, "min-length only allowed after variable keyword!");
 			modifier = get_const_token(parser, false);
 			length = parse_number(parser, modifier);
+			if( length == 0 ) {
+				error(parser, "min-length 0 currently not supported to avoid endless loops.\nIf you find a case where it is needed, let me know.");
+			}
 			have_length = true;
 		} else {
 			error(parser, "Unknown attribute '%s'", modifier);
@@ -2155,13 +2234,13 @@ bool parser_free(struct parser *parser) {
 	return success;
 }
 
-static const void *variable_finalize(struct parser *, struct variable *);
+static void variable_finalize(struct parser *, struct variable *, union parameter_option *);
 
-static const void *parameter_finalize(struct parser *parser, struct unfinished_parameter *parameter) {
+static const struct parameter *parameter_finalize(struct parser *parser, struct unfinished_parameter *parameter) {
 	struct unfinished_parameter *p;
 	size_t count = 0;
 	struct parameter *prepared, *f;
-	const void *finalized;
+	const struct parameter *finalized;
 	/* no need to do add empty ones all the time,
 	   just take the last one... */
 	static const struct parameter *empty = NULL;
@@ -2186,13 +2265,12 @@ static const void *parameter_finalize(struct parser *parser, struct unfinished_p
 			f->offse = p->special.offse;
 			f->name = p->special.condition;
 			f->type = p->special.type;
-			f->constants = p->special.finalized;
+			f->o.parameters = p->special.finalized;
 		} else {
 			f->offse = p->regular.offse;
 			f->name = p->regular.name;
 			f->type = p->regular.type.base_type->type;
-			f->constants = variable_finalize(parser,
-					p->regular.type.data);
+			variable_finalize(parser, p->regular.type.data, &f->o);
 		}
 	}
 	assert( (size_t)(f - prepared) == count );
@@ -2206,96 +2284,125 @@ static const void *parameter_finalize(struct parser *parser, struct unfinished_p
 	return finalized;
 }
 
-static const void *variable_finalize(struct parser *parser, struct variable *v) {
+static const struct parameter *parameters_finalize(struct parser *parser, struct variable *v) {
+	struct unfinished_parameter *p, *todo, *startat;
+
 	if( v == NULL )
 		return NULL;
-	if( v->finalized != NULL )
-		return v->finalized;
-	if( v->type == vt_values ) {
-		struct value *values;
-		struct unfinished_value *uv;
-		size_t i = 0, count = 0;
+	assert( v->type == vt_struct || v->type == vt_response ||
+			v->type == vt_setup ||
+			v->type == vt_request || v->type == vt_event );
+	if( v->finalized.parameters != NULL )
+		return v->finalized.parameters;
+	do {
+		todo = NULL;
+		startat = v->parameter;
+		p = startat;
 
-		for( uv = v->values; uv != NULL ; uv = uv->next )
-			count++;
-		values = calloc(count + 1, sizeof(struct value));
-		if( values == NULL ) {
-			oom(parser);
-			return NULL;
+		while( p != NULL ) {
+			if( !p->isspecial ) {
+				p = p->next;
+				continue;
+			}
+			if( p->special.finalized != NULL ) {
+				p = p->next;
+				continue;
+			}
+			if( !p->special.isjunction ) {
+				p = p->next;
+				continue;
+			}
+			if( p->special.iftrue == NULL ) {
+				/* empty branch still needs
+				   an end command, but no recursion
+				   for that */
+				p->special.finalized =
+					parameter_finalize(parser, NULL);
+				p = p->next;
+				continue;
+			}
+			todo = p;
+			startat = p->special.iftrue;
+			p = startat;
 		}
-		for( uv = v->values; uv != NULL ; uv = uv->next ) {
-			assert( i < count);
-			values[i].flag = uv->flag;
-			values[i].name = uv->name;
-			assert( C(uv->type.base_type, ELEMENTARY) );
-			values[i].type = uv->type.base_type->type;
-			values[i].constants = variable_finalize(
-					parser, uv->type.data);
-			i++;
+		if( todo != NULL ) {
+			todo->special.finalized =
+				parameter_finalize(parser, startat);
+		} else {
+			v->finalized.parameters =
+				parameter_finalize(parser, startat);
 		}
-		v->finalized = finalize_data(values, (count+1)*sizeof(struct value),
-				__alignof__(struct value));
-		free(values);
-		if( v->finalized == NULL )
-			parser->error = true;
-		return v->finalized;
+	} while( todo != NULL );
+	return v->finalized.parameters;
+}
+
+static const struct constant *constants_finalize(struct parser *parser, struct variable *v) {
+	if( v == NULL )
+		return NULL;
+	assert( v->type == vt_constants );
+
+	if( v->finalized.constants != NULL )
+		return v->finalized.constants;
+	v->finalized.constants = finalize_data(v->c.constants,
+			v->c.size, __alignof__(struct constant));
+	if( v->finalized.constants == NULL )
+		parser->error = true;
+	return v->finalized.constants;
+}
+
+static inline const struct value *values_finalize(struct parser *parser, struct variable *v) {
+	struct value *values;
+	struct unfinished_value *uv;
+	size_t i = 0, count = 0;
+
+	if( v == NULL )
+		return NULL;
+	assert( v->type == vt_values );
+
+	if( v->finalized.values != NULL )
+		return v->finalized.values;
+
+	for( uv = v->values; uv != NULL ; uv = uv->next )
+		count++;
+	values = calloc(count + 1, sizeof(struct value));
+	if( values == NULL ) {
+		oom(parser);
+		return NULL;
 	}
-	if( v->type == vt_constants ) {
-		v->finalized = finalize_data(v->c.constants,
-				v->c.size, __alignof__(struct constant));
-		if( v->finalized == NULL )
-			parser->error = true;
-		return v->finalized;
+	for( uv = v->values; uv != NULL ; uv = uv->next ) {
+		assert( i < count);
+		values[i].flag = uv->flag;
+		values[i].name = uv->name;
+		assert( C(uv->type.base_type, ELEMENTARY) );
+		values[i].type = uv->type.base_type->type;
+		values[i].constants = constants_finalize(
+				parser, uv->type.data);
+		i++;
 	}
-	if( v->type == vt_struct || v->type == vt_response ||
+	v->finalized.values = finalize_data(values,
+			(count+1)*sizeof(struct value),
+			__alignof__(struct value));
+	free(values);
+	if( v->finalized.values == NULL )
+		parser->error = true;
+	return v->finalized.values;
+}
+
+static void variable_finalize(struct parser *parser, struct variable *v, union parameter_option *o) {
+	if( v == NULL ) {
+		memset(o, 0, sizeof(union parameter_option));
+	} else if( v->type == vt_values ) {
+		o->values = values_finalize(parser, v);
+	} else if( v->type == vt_constants ) {
+		o->constants = constants_finalize(parser, v);
+	} else if( v->type == vt_struct || v->type == vt_response ||
 			v->type == vt_setup ||
 			v->type == vt_request || v->type == vt_event ) {
-		struct unfinished_parameter *p, *todo, *startat;
-		do {
-
-			todo = NULL;
-			startat = v->parameter;
-			p = startat;
-
-			while( p != NULL ) {
-				if( !p->isspecial ) {
-					p = p->next;
-					continue;
-				}
-				if( p->special.finalized != NULL ) {
-					p = p->next;
-					continue;
-				}
-				if( !p->special.isjunction ) {
-					p = p->next;
-					continue;
-				}
-				if( p->special.iftrue == NULL ) {
-					/* empty branch still needs
-					   an end command, but no recursion
-					   for that */
-					p->special.finalized =
-							parameter_finalize(
-								parser,
-								NULL);
-					p = p->next;
-					continue;
-				}
-				todo = p;
-				startat = p->special.iftrue;
-				p = startat;
-			}
-			if( todo != NULL ) {
-				todo->special.finalized =
-					parameter_finalize(parser, startat);
-			} else {
-				v->finalized =
-					parameter_finalize(parser, startat);
-			}
-		} while( todo != NULL );
-		return v->finalized;
+		o->parameters = parameters_finalize(parser, v);
+	} else {
+		memset(o, 0, sizeof(union parameter_option));
+		assert( v->type != v->type );
 	}
-	assert( v->type != v->type );
 }
 
 static const struct request *finalize_requests(struct parser *parser, struct namespace *ns, const struct parameter *unknownrequest, const struct parameter *unknownresponse) {
@@ -2315,7 +2422,7 @@ static const struct request *finalize_requests(struct parser *parser, struct nam
 			rs[i].parameters = unknownrequest;
 		} else {
 			assert( ns->requests[i].request != NULL);
-			rs[i].parameters = variable_finalize(parser,
+			rs[i].parameters = parameters_finalize(parser,
 					ns->requests[i].request);
 		}
 		if( ns->requests[i].has_response ) {
@@ -2324,11 +2431,12 @@ static const struct request *finalize_requests(struct parser *parser, struct nam
 				rs[i].answers = unknownresponse;
 			} else {
 				assert( ns->requests[i].response != NULL);
-				rs[i].answers = variable_finalize(parser,
+				rs[i].answers = parameters_finalize(parser,
 						ns->requests[i].response);
 			}
 		} else
 			assert( ns->requests[i].response == NULL);
+		rs[i].record_variables = ns->requests[i].record_variables;
 		if( !ns->requests[i].special )
 			continue;
 		assert( rs[i].name != NULL );
@@ -2373,7 +2481,7 @@ static const struct event *finalize_events(struct parser *parser, struct namespa
 	}
 	for( i = 0 ; i < ns->num_events[et] ; i++ ) {
 		es[i].name = ns->events[et][i].name;
-		es[i].parameters = variable_finalize(parser,
+		es[i].parameters = parameters_finalize(parser,
 				ns->events[et][i].event);
 		if( !ns->events[et][i].special )
 			continue;
@@ -2447,9 +2555,9 @@ void finalize_everything(struct parser *parser) {
 		return;
 	}
 	v = find_variable(parser, vt_request, "core::unknown");
-	unknownrequest = variable_finalize(parser, v);
+	unknownrequest = parameters_finalize(parser, v);
 	v = find_variable(parser, vt_response, "core::unknown");
-	unknownresponse = variable_finalize(parser, v);
+	unknownresponse = parameters_finalize(parser, v);
 	unexpected_reply = unknownresponse;
 	if( parser->error )
 		return;
@@ -2506,7 +2614,7 @@ void finalize_everything(struct parser *parser) {
 	if( errors == NULL )
 		parser->error = true;
 	num_errors = core->num_errors;
-	setup_parameters = variable_finalize(parser, core->setup);
+	setup_parameters = parameters_finalize(parser, core->setup);
 }
 
 /*
