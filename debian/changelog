@@ -1,3 +1,11 @@
+xtrace (0.2-1) unstable; urgency=low
+
+  * new version
+    - some cleanups
+    - now supports SHAPE extension
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  3 Dec 2005 15:36:37 +0100
+
 xtrace (0.1-1) unstable; urgency=low
 
   * Initial release
