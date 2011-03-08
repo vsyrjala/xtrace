@@ -1,3 +1,10 @@
+xtrace (0.2.1-1) unstable; urgency=low
+
+  * hot fix for segfault with -k
+    - extension cleanup for multiple connections while we are at it
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  3 Dec 2005 18:01:02 +0100
+
 xtrace (0.2-1) unstable; urgency=low
 
   * new version
