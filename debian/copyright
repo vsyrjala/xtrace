@@ -1,0 +1,200 @@
+This package was debianized by Bernhard R. Link <brlink@debian.org> on
+Sun, 13 Nov 2005 15:10:04 +0100.
+
+Copyright Holder of the main program: Bernhard R. Link <brlink@debian.org>
+
+License:
+
+   This package is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This package is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this package; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL'.
+
+The files request.inc and events.inc are based on Appendix B of the
+		  X Window System Protocol
+		   X Consortium Standard
+		 X Version 11, Release 6.4
+
+		    Robert W. Scheifler
+		     X Consortium, Inc.
+
+with the following trademark and copyright notices and acknowlegdgments: 
+
+X Window System is a trademark of X Consortium, Inc.
+
+Copyright (C) 1986, 1987, 1988, 1994 X Consortium
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documenta-
+tion files (the ``Software''), to deal in the Software with-
+out restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the fol-
+lowing conditions:
+
+The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PUR-
+POSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE X CONSOR-
+TIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of the X Con-
+sortium shall not be used in advertising or otherwise to
+promote the sale, use or other dealings in this Software
+without prior written authorization from the X Consortium.
+
+		      Acknowledgments
+
+The primary contributers to the X11 protocol are:
+
+     Dave Carver (Digital HPW)
+     Branko Gerovac (Digital HPW)
+     Jim Gettys (MIT/Project Athena, Digital)
+     Phil Karlton (Digital WSL)
+     Scott McGregor (Digital SSG)
+     Ram Rao (Digital UEG)
+     David Rosenthal (Sun)
+     Dave Winchell (Digital UEG)
+
+The implementors of initial server who provided useful input
+are:
+
+     Susan Angebranndt (Digital)
+     Raymond Drewry (Digital)
+     Todd Newman (Digital)
+
+The invited reviewers who provided useful input are:
+
+     Andrew Cherenson (Berkeley)
+     Burns Fisher (Digital)
+     Dan Garfinkel (HP)
+     Leo Hourvitz (Next)
+     Brock Krizan (HP)
+     David Laidlaw (Stellar)
+     Dave Mellinger (Interleaf)
+     Ron Newman (MIT)
+     John Ousterhout (Berkeley)
+     Andrew Palay (ITC CMU)
+     Ralph Swick (MIT)
+     Craig Taylor (Sun)
+     Jeffery Vroom (Stellar)
+
+
+This file shape.inc is based on shape.txt.gz from xspecs package:
+		  X Nonrectangular Window
+		  Shape Extension Protocol
+			Version 1.0
+		   X Consortium Standard
+		 X Version 11, Release 6.4
+		       Keith Packard
+		      MIT X Consortium
+Copyright (C) 1989 X Consortium
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documenta-
+tion files (the ``Software''), to deal in the Software with-
+out restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the fol-
+lowing conditions:
+
+The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PUR-
+POSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE X
+CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABIL-
+ITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of the X Con-
+sortium shall not be used in advertising or otherwise to
+promote the sale, use or other dealings in this Software
+without prior written authorization from the X Consortium.
+
+This file bigrequest.inc is based on shape.txt.gz from xspecs package:
+  		   Big Requests Extension
+
+			Version 2.0
+		   X Consortium Standard
+		 X Version 11, Release 6.4
+
+		       Bob Scheifler
+		     X Consortium, Inc.
+Copyright (C) 1993, 1994 X Consortium
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documenta-
+tion files (the ``Software''), to deal in the Software with-
+out restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the fol-
+lowing conditions:
+
+The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PUR-
+POSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE X CONSOR-
+TIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of the X Con-
+sortium shall not be used in advertising or otherwise to
+promote the sale, use or other dealings in this Software
+without prior written authorization from the X Consortium.
+
+The file render.inc is based on /usr/include/X11/extensions/render{,proto}.h,
+which have the following notice:
+
+Copyright © 2000 SuSE, Inc.
+
+Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+the above copyright notice appear in all copies and that both that
+copyright notice and this permission notice appear in supporting
+documentation, and that the name of SuSE not be used in advertising or
+publicity pertaining to distribution of the software without specific,
+written prior permission.  SuSE makes no representations about the
+suitability of this software for any purpose.  It is provided "as is"
+without express or implied warranty.
+
+SuSE DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL SuSE
+BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Author:  Keith Packard, SuSE, Inc.
