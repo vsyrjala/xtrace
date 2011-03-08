@@ -1,0 +1,19 @@
+Source: xtrace
+Section: x11
+Priority: extra
+Maintainer: Bernhard R. Link <brlink@debian.org>
+Build-Depends: debhelper (>= 5.0.0)
+Standards-Version: 3.8.0
+Vcs-Browser: http://alioth.debian.org/plugins/scmcvs/cvsweb.php/xtrace/?cvsroot=xtrace
+Vcs-Cvs: :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/xtrace xtrace
+Homepage: http://xtrace.alioth.debian.org/
+
+Package: xtrace
+Architecture: any
+Depends: ${shlibs:Depends}
+Suggests: xauth | xbase-clients
+Description: trace communication between X client and server
+ What strace is for system calls, xtrace is for X11 connections:
+ you hook it between one or more X11 clients and an X server and
+ it prints the requests going from client to server and the replies,
+ events and errors going the other way.
