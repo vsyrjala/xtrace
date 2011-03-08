@@ -1,3 +1,22 @@
+2010-05-06
+	* Add DRI2 (up to version 1.3)
+2010-04-07
+	* Add support for Generic Events (XGE)
+	* Fix bug in error reporting when multiple STRUCTs have the same name
+	* add --print-counts --print-offsets
+	* add FIXED3232 (fixed point with 32 bits before and 32 after the dot)
+	* add some of the generic events of XI2
+2010-03-30
+	* Add support for XInputExtension 1.5, and partial support for
+	  XInputExtension 2.0
+2010-03-22
+	* fix FRACTION16_16 on big-endian systems
+	* add FRACTION32_32
+2010-01-21
+	* fix extension name output to not go to stdout unconditionaly
+	  (Thanks to Tommi Komulainen)
+	* fix missing contants in shape kind and wrong kind in fixes
+	  extension (Thanks to Tommi Komulainen)
 2010-01-05
 	* fix parsing initial server response
 	(old bug, but became obvious on big endian with the new code)

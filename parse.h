@@ -5,9 +5,11 @@ struct constant {
 	unsigned long value;
 	const char *name;
 };
+struct event;
 
 typedef bool request_func(struct connection*,bool,bool,struct expectedreply *);
 typedef void reply_func(struct connection*,bool*,bool*,int,void*);
+typedef void event_func(struct connection *, const unsigned char *, const struct event *);
 
 struct request {
 	const char *name;
@@ -20,6 +22,8 @@ struct request {
 struct event {
 	const char *name;
 	const struct parameter *parameters;
+	enum event_type { event_normal = 0, event_xge = 1} type;
+#define event_COUNT 2
 };
 
 struct extension {
@@ -31,6 +35,8 @@ struct extension {
 	unsigned char numevents;
 	const char * const *errors;
 	unsigned char numerrors;
+	unsigned short numxgevents;
+	const struct event *xgevents;
 };
 
 struct parameter {
@@ -100,12 +106,18 @@ struct parameter {
 		ft_FIXED,
 		/* a list of those */
 		ft_LISTofFIXED,
+		/* a fixed-point number 32+32 bit */
+		ft_FIXED3232,
+		/* a list of those */
+		ft_LISTofFIXED3232,
 		/* a 32 bit floating pointer number */
 		ft_FLOAT32,
 		/* a list of those */
 		ft_LISTofFLOAT32,
 		/* fraction with nominator and denominator 16 bit */
 		ft_FRACTION16_16,
+		/* dito 32 bit */
+		ft_FRACTION32_32,
 		/* set stored value to specific value */
 		ft_DECREMENT_STORED,
 		ft_SET
@@ -132,10 +144,11 @@ extern size_t num_extensions;
 extern const struct parameter *unexpected_reply;
 extern const struct parameter *setup_parameters;
 
-bool requestQueryExtension(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply);
-bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply);
-void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontremove,int datatype UNUSED,void *data UNUSED);
-void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype,void *data);
-void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype UNUSED,void *data);
+/* special handlers, for the SPECIAL requests/events */
+extern request_func requestQueryExtension;
+extern request_func requestInternAtom;
+extern reply_func replyListFontsWithInfo;
+extern reply_func replyQueryExtension;
+extern reply_func replyInternAtom;
 
 #endif
