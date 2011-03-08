@@ -1,3 +1,11 @@
+xtrace (0.3-1) unstable; urgency=low
+
+  * add support for RENDER extension
+  * int16 now really printed as int16 and not uint16
+  * support copyauth for "ssh -X".
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 28 Feb 2006 15:55:28 +0100
+
 xtrace (0.2.1-1) unstable; urgency=low
 
   * hot fix for segfault with -k
