@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "xtrace.h"
+#include "parse.h"
 
 enum package_direction { TO_SERVER, TO_CLIENT };
 
@@ -81,41 +82,7 @@ static void startline(struct connection *c, enum package_direction d, const char
 #define getCARD8(ofs) buffer[ofs]
 #define getCARD32(ofs) CARD32(c->bigendian,buffer,ofs)
 
-#define getBE32(ofs) (((buffer[ofs]*256+buffer[ofs+1])*256+buffer[ofs+2])*256+buffer[ofs+4])
-
-#define NUM(array) (sizeof(array)/sizeof(array[0]))
-
-struct constant {
-	unsigned long value;
-	const char *name;
-};
-
-typedef bool request_func(struct connection*,bool,bool,struct expectedreply *);
-typedef void reply_func(struct connection*,bool*,bool*,int,void*);
-
-struct request {
-	const char *name;
-	const struct parameter *parameters;
-	const struct parameter *answers;
-
-	request_func *request_func;
-	reply_func *reply_func;
-};
-struct event {
-	const char *name;
-	const struct parameter *parameters;
-};
-
-struct extension {
-	const char *name;
-	size_t namelen;
-	const struct request *subrequests;
-	unsigned char numsubrequests;
-	const struct event *events;
-	unsigned char numevents;
-	const char **errors;
-	unsigned char numerrors;
-};
+#define getBE32(ofs) (((buffer[ofs]*UL256+buffer[ofs+1])*UL256+buffer[ofs+2])*UL256+buffer[ofs+3])
 
 struct usedextension {
 	struct usedextension *next;
@@ -188,7 +155,7 @@ struct expectedreply {
 	void *data;
 };
 
-struct extension *find_extension(const uint8_t *name,size_t len);
+const struct extension *find_extension(const uint8_t *name,size_t len);
 
 static void print_bitfield(const char *name,const struct constant *constants, unsigned long l){
 	const struct constant *c;
@@ -230,75 +197,6 @@ static const char *findConstant(const struct constant *constants, unsigned long 
 #define ROUND_32 ((size_t)-1)
 #define ROUND { ROUND_32, "", ft_LASTMARKER, NULL}
 
-struct parameter {
-	/* The offset within the event, request, reply or Struct this
-	 * applies to. If OFS_LATER it is after the last list item
-	 * in this parameter-list. */
-	size_t offse;
-	const char *name;
-	enum fieldtype {
-		/* signed endian specific: */
-		ft_INT8, ft_INT16, ft_INT32,
-		/* unsigned decimal endian specific: */
-		ft_UINT8, ft_UINT16, ft_UINT32,
-		/* unsigned hex endian specific: */
-		ft_CARD8, ft_CARD16, ft_CARD32,
-		/* enums (not in constant list is error): */
-		ft_ENUM8, ft_ENUM16, ft_ENUM32,
-		/* counts for following strings, lists, ...
-		 * value-mask for LISTofFormat */
-		ft_STORE8, ft_STORE16, ft_STORE32,
-		/* to be ft_GET later into the store register */
-		ft_PUSH8, ft_PUSH16, ft_PUSH32,
-		/* bitfields: multiple values are possible */
-		ft_BITMASK8, ft_BITMASK16, ft_BITMASK32,
-		/* Different forms of lists: */
-		/*	- boring ones */
-		ft_STRING8, ft_LISTofCARD32, ft_LISTofATOM,
-		ft_LISTofCARD8, ft_LISTofCARD16,
-		ft_LISTofUINT8, ft_LISTofUINT16,
-		ft_LISTofUINT32,
-		/*	- one of the above depening on last FORMAT */
-		ft_LISTofFormat,
-		/*	- iterate of list description in constants field */
-		ft_LISTofStruct,
-		/*	- same but length is mininum length and
-		 *	  actual length is taken from end of last list
-		 *	  or LASTMARKER */
-		ft_LISTofVarStruct,
-		/*	- like ENUM for last STORE, but constants
-		 *	  are of type (struct value*) interpreteted at this
-		 *	  offset */
-		ft_LISTofVALUE,
-		/* an LISTofStruct with count = 1 */
-		ft_Struct,
-		/* specify bits per item for LISTofFormat */
-		ft_FORMAT8,
-		/* an event
-		 * (would have also been possible with Struct and many IF)*/
-		ft_EVENT,
-		/* jump to other parameter list if matches */
-		ft_IF8,
-		ft_IF16,
-		/* jump to other parameter list if matches atom name */
-		ft_IFATOM,
-		/* set end of last list manually, (for LISTofVarStruct) */
-		ft_LASTMARKER,
-		/* a ft_CARD32 looking into the ATOM list */
-		ft_ATOM,
-		/* always big endian */
-		ft_BE32,
-		/* get the #ofs value from the stack. (0 is the last pushed) */
-		ft_GET,
-		/* a fixed-point number 16+16 bit */
-		ft_FIXED,
-		/* a list of those */
-		ft_LISTofFIXED,
-		/* set stored value to specific value */
-		ft_SET
-		} type;
-	const struct constant *constants;
-};
 
 static size_t printSTRING8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len,size_t ofs){
 	size_t nr = 0;
@@ -469,6 +367,38 @@ static size_t printLISTofFIXED(struct connection *c,const uint8_t *buffer,size_t
 	return ofs;
 }
 
+static size_t printLISTofFLOAT32(struct connection *c, const uint8_t *buffer, size_t buflen, const struct parameter *p, size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( (buflen - ofs)/4 <= len )
+		len = (buflen - ofs)/4;
+
+	if( print_offsets )
+		fprintf(out,"[%d]",(int)ofs);
+	fprintf(out,"%s=",p->name);
+	while( len > 0 ) {
+		uint32_t u32;
+		float f;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...",out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',',out);
+			notfirst = true;
+			u32 = getCARD32(ofs);
+			memcpy(&f, &u32, 4);
+			fprintf(out, "%f", f);
+		}
+		len--;ofs+=4;nr++;
+	}
+	putc(';',out);
+	return ofs;
+}
+
 static size_t printLISTofATOM(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
@@ -506,6 +436,111 @@ static size_t printLISTofATOM(struct connection *c,const uint8_t *buffer,size_t 
 	return ofs;
 }
 
+static size_t printLISTofINT8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( buflen - ofs <= len )
+		len = buflen - ofs;
+
+	if( print_offsets )
+		fprintf(out,"[%d]",(int)ofs);
+	fprintf(out,"%s=",p->name);
+	while( len > 0 ) {
+		const char *value;
+		signed char i8;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...",out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',',out);
+			notfirst = true;
+			i8 = getCARD8(ofs);
+			value = findConstant(p->constants,i8);
+			if( value )
+				fprintf(out,"%s(%d)",value,(int)i8);
+			else
+				fprintf(out,"%d",(int)i8);
+		}
+		len--;ofs++;nr++;
+	}
+	putc(';',out);
+	return ofs;
+}
+
+static size_t printLISTofINT16(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( (buflen - ofs)/2 <= len )
+		len = (buflen - ofs)/2;
+
+	if( print_offsets )
+		fprintf(out,"[%d]",(int)ofs);
+	fprintf(out,"%s=",p->name);
+	while( len > 0 ) {
+		const char *value;
+		int16_t i16;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...",out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',',out);
+			notfirst = true;
+			i16 = getCARD16(ofs);
+			value = findConstant(p->constants,i16);
+			if( value )
+				fprintf(out,"%s(%d)",value,(int)i16);
+			else
+				fprintf(out,"%d",(int)i16);
+		}
+		len--;ofs+=2;nr++;
+	}
+	putc(';',out);
+	return ofs;
+}
+
+static size_t printLISTofINT32(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( (buflen - ofs)/4 <= len )
+		len = (buflen - ofs)/4;
+
+	if( print_offsets )
+		fprintf(out,"[%d]",(int)ofs);
+	fprintf(out,"%s=",p->name);
+	while( len > 0 ) {
+		const char *value;
+		int32_t i32;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...",out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',',out);
+			notfirst = true;
+			i32 = getCARD32(ofs);
+			value = findConstant(p->constants,i32);
+			if( value )
+				fprintf(out,"%s(%d)",value,(int)i32);
+			else
+				fprintf(out,"%d",(int)i32);
+		}
+		len--;ofs+=4;nr++;
+	}
+	putc(';',out);
+	return ofs;
+}
+
 static size_t printLISTofUINT8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
@@ -531,9 +566,9 @@ static size_t printLISTofUINT8(const uint8_t *buffer,size_t buflen,const struct 
 			u8 = getCARD8(ofs);
 			value = findConstant(p->constants,u8);
 			if( value )
-				fprintf(out,"%s(%d)",value,(unsigned int)u8);
+				fprintf(out,"%s(%u)",value,(unsigned int)u8);
 			else
-				fprintf(out,"%d",(unsigned int)u8);
+				fprintf(out,"%u",(unsigned int)u8);
 		}
 		len--;ofs++;nr++;
 	}
@@ -566,9 +601,9 @@ static size_t printLISTofUINT16(struct connection *c,const uint8_t *buffer,size_
 			u16 = getCARD16(ofs);
 			value = findConstant(p->constants,u16);
 			if( value )
-				fprintf(out,"%s(%d)",value,(unsigned int)u16);
+				fprintf(out,"%s(%u)",value,(unsigned int)u16);
 			else
-				fprintf(out,"%d",(unsigned int)u16);
+				fprintf(out,"%u",(unsigned int)u16);
 		}
 		len--;ofs+=2;nr++;
 	}
@@ -601,24 +636,15 @@ static size_t printLISTofUINT32(struct connection *c,const uint8_t *buffer,size_
 			u32 = getCARD32(ofs);
 			value = findConstant(p->constants,u32);
 			if( value )
-				fprintf(out,"%s(%x)",value,(unsigned int)u32);
+				fprintf(out,"%s(%u)",value,(unsigned int)u32);
 			else
-				fprintf(out,"%x",(unsigned int)u32);
+				fprintf(out,"%u",(unsigned int)u32);
 		}
 		len--;ofs+=4;nr++;
 	}
 	putc(';',out);
 	return ofs;
 }
-
-struct value {
-	unsigned long flag;
-	/* NULL means EndOfValues */
-	const char *name;
-	/* only elementary type (<= ft_BITMASK32 are allowed ), */
-	enum fieldtype type;
-	const struct constant *constants;
-};
 
 static size_t printLISTofVALUE(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *param,unsigned long valuemask, size_t ofs){
 
@@ -837,7 +863,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 	const struct parameter *p;
 	unsigned long stored = INT_MAX;
 	unsigned char format = 0;
-	bool notfirst = false;
+	bool printspace = false;
 	size_t lastofs = 0;
 	struct stack newstack = *oldstack;
 
@@ -854,6 +880,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		const char *value;
 		const char *atom;
 		double d;
+		float f;
 
 		if( p->offse == OFS_LATER )
 			ofs = lastofs;
@@ -863,21 +890,32 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		else
 			ofs = p->offse;
 
-		if( notfirst )
+		if( printspace )
 			putc(' ',out);
-		notfirst = true;
+		printspace = true;
 
 		if( p->type == ft_IF8 ) {
 			if( ofs < len &&
 			  /* some more overloading: */
 			  getCARD8(ofs) == (unsigned char)(p->name[0]) )
 				p = ((struct parameter *)p->constants)-1;
+			printspace = false;
 			continue;
 		} else if( p->type == ft_IF16 ) {
 			if( ofs+1 < len &&
-			  getCARD16(ofs) == (unsigned char)(p->name[1]) 
-			  + (unsigned char)0x100*(unsigned char)(p->name[0]))
+			  getCARD16(ofs) == (unsigned char)(p->name[1])
+			  + (unsigned int)0x100*(unsigned char)(p->name[0]))
 				p = ((struct parameter *)p->constants)-1;
+			printspace = false;
+			continue;
+		} else if( p->type == ft_IF32 ) {
+			if( ofs+3 < len &&
+			  getCARD32(ofs) == (unsigned char)(p->name[3])
+			  + (((unsigned long)((unsigned char)(p->name[2])))<<8)
+			  + (((unsigned long)((unsigned char)(p->name[1])))<<16)
+			  + (((unsigned long)((unsigned char)(p->name[0])))<<24) )
+				p = ((struct parameter *)p->constants)-1;
+			printspace = false;
 			continue;
 		} else if( p->type == ft_IFATOM ) {
 			const char *atomname;
@@ -888,6 +926,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 				continue;
 			if( strcmp(atomname, p->name) == 0 )
 				p = ((struct parameter *)p->constants)-1;
+			printspace = false;
 			continue;
 		}
 
@@ -897,10 +936,12 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 				 lastofs = (lastofs+3)& ~3;
 			 else
 				 lastofs = ofs;
+			 printspace = false;
 			 continue;
 		 case ft_FORMAT8:
 			 if( ofs < len )
 				 format = getCARD8(ofs);
+			printspace = false;
 			 continue;
 		 case ft_STRING8:
 			lastofs = printSTRING8(buffer,len,p,stored,ofs);
@@ -925,6 +966,15 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 			continue;
 		 case ft_LISTofUINT32:
 			lastofs = printLISTofUINT32(c,buffer,len,p,stored,ofs);
+			continue;
+		 case ft_LISTofINT8:
+			lastofs = printLISTofINT8(buffer,len,p,stored,ofs);
+			continue;
+		 case ft_LISTofINT16:
+			lastofs = printLISTofINT16(c,buffer,len,p,stored,ofs);
+			continue;
+		 case ft_LISTofINT32:
+			lastofs = printLISTofINT32(c,buffer,len,p,stored,ofs);
 			continue;
 		 case ft_LISTofFormat:
 			switch( format ) {
@@ -967,6 +1017,30 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofFIXED:
 			lastofs = printLISTofFIXED(c,buffer,len,p,stored,ofs);
 			continue;
+		 case ft_FLOAT32:
+			if( ofs + 4 > len )
+				continue;
+			if( print_offsets )
+				fprintf(out,"[%d]",(int)ofs);
+			fputs(p->name,out);putc('=',out);
+			/* how exactly is this float transfered? */
+			u32 = getCARD32(ofs);
+			memcpy(&f, &u32, 4);
+			fprintf(out,"%f", f);
+			continue;
+		 case ft_LISTofFLOAT32:
+			lastofs = printLISTofFLOAT32(c,buffer,len,p,stored,ofs);
+			continue;
+		 case ft_FRACTION16_16:
+			if( ofs + 4 > len )
+				continue;
+			if( print_offsets )
+				fprintf(out,"[%d]",(int)ofs);
+			fputs(p->name,out);putc('=',out);
+			i16 = getCARD32(ofs);
+			u16 = getCARD32(ofs + 2);
+			fprintf(out,"%hd/%hu", i16, u16);
+			continue;
 		 case ft_EVENT:
 			if( len >= ofs + 32 )
 				print_event(c,buffer+ofs);
@@ -995,9 +1069,18 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 			continue;
 		 case ft_GET:
 			stored = getFromStack(&newstack,p->offse);
+			printspace = false;
+			continue;
+		 case ft_DECREMENT_STORED:
+			if( stored < p->offse )
+				stored = 0;
+			else
+				stored -= p->offse;
+			printspace = false;
 			continue;
 		 case ft_SET:
 			stored = p->offse;
+			printspace = false;
 			continue;
 		 default:
 			break;
@@ -1035,13 +1118,17 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		if( p->type >= ft_PUSH8 ) {
 			assert(p->type <= ft_PUSH32 );
 			push(&newstack,l);
-			if( !print_counts)
+			if( !print_counts) {
+				printspace = false;
 				continue;
+			}
 		} else if( p->type >= ft_STORE8 ) {
 			assert(p->type <= ft_STORE32);
 			stored = l;
-			if( !print_counts)
+			if( !print_counts) {
+				printspace = false;
 				continue;
+			}
 		}
 		value = findConstant(p->constants,l);
 		if( print_offsets )
@@ -1109,6 +1196,9 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofUINT8:
 		 case ft_LISTofUINT16:
 		 case ft_LISTofUINT32:
+		 case ft_LISTofINT8:
+		 case ft_LISTofINT16:
+		 case ft_LISTofINT32:
 		 case ft_LISTofFormat:
 		 case ft_LISTofVALUE:
 		 case ft_Struct:
@@ -1116,15 +1206,20 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofVarStruct:
 		 case ft_IF8:
 		 case ft_IF16:
+		 case ft_IF32:
 		 case ft_IFATOM:
 		 case ft_BE32:
 		 case ft_ATOM:
 		 case ft_LASTMARKER:
 		 case ft_GET:
+		 case ft_DECREMENT_STORED:
 		 case ft_SET:
 		 case ft_EVENT:
+		 case ft_FRACTION16_16:
 		 case ft_FIXED:
 		 case ft_LISTofFIXED:
+		 case ft_FLOAT32:
+		 case ft_LISTofFLOAT32:
 			 assert(0);
 		}
 		if( value != NULL ) {
@@ -1152,7 +1247,7 @@ static bool requestGrabButton(struct connection *c, bool pre, bool bigrequest,st
 
 */
 
-static bool requestQueryExtension(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
+bool requestQueryExtension(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
 	if( pre )
 		return false;
 	if( reply == NULL)
@@ -1160,7 +1255,7 @@ static bool requestQueryExtension(struct connection *c, bool pre, bool bigreques
 	if( c->clientignore <= 8 )
 		return false;
 	reply->datatype = 0;
-	reply->data = find_extension(c->clientbuffer+8,c->clientignore-8);
+	reply->data = (void*)find_extension(c->clientbuffer+8,c->clientignore-8);
 	if( reply->data == NULL ) {
 		size_t len = c->clientignore-8;
 		if( len > clientCARD16(4) )
@@ -1171,7 +1266,7 @@ static bool requestQueryExtension(struct connection *c, bool pre, bool bigreques
 	return false;
 }
 
-static bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
+bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
 	uint16_t len;
 	if( pre )
 		return false;
@@ -1188,7 +1283,7 @@ static bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UN
 
 /* Reactions to some replies */
 
-static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontremove,int datatype UNUSED,void *data UNUSED) {
+void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontremove,int datatype UNUSED,void *data UNUSED) {
 	unsigned int seq = serverCARD16(2);
 	if( serverCARD8(1) == 0 ) {
 
@@ -1197,7 +1292,7 @@ static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontr
 	} else
 		*dontremove = true;
 }
-static void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype,void *data) {
+void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype,void *data) {
 	/* nothing to do if the extension is not available */
 	if( serverCARD8(8) == 0)
 		return;
@@ -1234,7 +1329,7 @@ static void replyQueryExtension(struct connection *c,bool *ignore UNUSED,bool *d
 	}
 }
 
-static void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype UNUSED,void *data) {
+void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontremove UNUSED,int datatype UNUSED,void *data) {
 	uint32_t atom;
 	if( data == NULL )
 		return;
@@ -1247,7 +1342,10 @@ static void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontr
 #define ft_COUNT32 ft_STORE32
 #define RESET_COUNTER	{ INT_MAX,	"",		ft_SET,		NULL}
 #define SET_COUNTER(cnt)	{ cnt,	"",		ft_SET,		NULL}
-#include "requests.inc"
+
+const struct request *requests;
+size_t num_requests;
+const struct parameter *unexpected_reply;
 
 static inline void free_expectedreplylist(struct expectedreply *r) {
 
@@ -1300,7 +1398,7 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 
 	r = find_extension_request(c,req,subreq,&extensionname);
 	if( r == NULL ) {
-		if( req < NUM(requests) )
+		if( req < num_requests )
 			r = &requests[req];
 		else r = &requests[0];
 	}
@@ -1310,22 +1408,27 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 	else
 		ignore = r->request_func(c,true,bigrequest,NULL);
 	if( !ignore ) {
+		const char *name;
+
+		name = r->name;
+		if( name == NULL )
+			name = "UNKNOWN";
+		assert( r->parameters != NULL);
 		if( extensionname[0] == '\0' )
 			startline(c, TO_SERVER, "%04x:%3u: Request(%hhu): %s ",
 				(unsigned int)(c->seq),c->clientignore,
-				req, r->name
+				req, name
 		      );
 		else
 			startline(c, TO_SERVER, "%04x:%3u: %s-Request(%hhu,%hhu): %s ",
 				(unsigned int)(c->seq),
 				c->clientignore,
 				extensionname, req, subreq,
-				r->name
+				name
 		      );
 		if( r->parameters != NULL )
-			print_parameters(c,c->clientbuffer,len,r->parameters, bigrequest, &stack);
-		else
-			fputs("obsolete without parameter description\n",out);
+			print_parameters(c, c->clientbuffer, len,
+					r->parameters, bigrequest, &stack);
 		if( r->request_func != NULL )
 			(void)r->request_func(c,false,bigrequest,NULL);
 		putc('\n',out);
@@ -1378,9 +1481,16 @@ static inline void print_server_reply(struct connection *c) {
 				replyto->from->reply_func(c,&ignore,&dontremove,replyto->datatype,replyto->data);
 
 			if( !ignore ) {
-				startline(c, TO_CLIENT, "%04x:%u: Reply to %s: ", seq, (unsigned int)c->serverignore,replyto->from->name);
-				print_parameters(c,
-					c->serverbuffer,len,replyto->from->answers,false,&stack);
+				const char *name = replyto->from->name;
+
+				if( name == NULL )
+					name = "UNKNOWN";
+				startline(c, TO_CLIENT, "%04x:%u: Reply to %s: ",
+						seq,
+						(unsigned int)c->serverignore,
+						name);
+				print_parameters(c, c->serverbuffer, len,
+					replyto->from->answers, false, &stack);
 				putc('\n',out);
 			}
 			if( !dontremove ) {
@@ -1393,17 +1503,15 @@ static inline void print_server_reply(struct connection *c) {
 			return;
 		}
 	}
-	startline(c, TO_CLIENT, "%04x:%u: unexpected reply\n",
-			seq, c->serverignore);
+	startline(c, TO_CLIENT, "%04x:%u: unexpected Reply: ",
+			seq, (unsigned int)c->serverignore);
+	print_parameters(c, c->serverbuffer, len,
+			unexpected_reply, false, &stack);
+	putc('\n',out);
 }
 
-const char *errors[] = {
-	"no error","Request","Value","Window",
-	"Pixmap","Atom","Cursor","Font",
-	"Match","Drawable","Access","Alloc",
-	"Colormap","GContext","IDChoice","Name",
-	"Length","Implementation"
-};
+const char * const *errors;
+size_t num_errors;
 
 static inline void print_server_error(struct connection *c) {
 	unsigned int cmd = serverCARD8(1);
@@ -1411,8 +1519,7 @@ static inline void print_server_error(struct connection *c) {
 	const char *errorname;
 	uint16_t seq;
 	struct expectedreply *replyto,**lastp;
-
-	if( cmd < NUM(errors) )
+	if( cmd < num_errors )
 		errorname = errors[cmd];
 	else {
 		errorname = "unknown";
@@ -1573,7 +1680,8 @@ void parse_server(struct connection *c) {
 	assert(false);
 }
 
-#include "events.inc"
+const struct event *events;
+size_t num_events;
 
 static void print_event(struct connection *c,const unsigned char *buffer) {
 	const struct event *event;
@@ -1587,7 +1695,7 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 	if( (code & 0x80) != 0 )
 		fputs("(generated) ",out);
 	code &= 0x7F;
-	if( code <= 1 || code > NUM(events) ) {
+	if( code <= 1 || code > num_events ) {
 		struct usedextension *u = c->usedextensions;
 		while( u != NULL ) {
 			if( code >= u->first_event &&
@@ -1601,6 +1709,9 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 		if( u == NULL ) {
 			fprintf(out,"unknown code %hhu",code);
 			return;
+		} else {
+			fputs(u->extension->name, stdout);
+			putchar('-');
 		}
 	} else
 		event = &events[code];
@@ -1608,46 +1719,12 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 	print_parameters(c,buffer,32,event->parameters,false,&stack);
 }
 
-#include "shape.inc"
-#include "bigrequest.inc"
-#include "render.inc"
-#include "randr.inc"
-#include "xinerama.inc"
-#include "mitshm.inc"
-#include "xf86vidmode.inc"
-#include "xf86bigfont.inc"
-#include "dpms.inc"
-#include "saver.inc"
-#include "fixes.inc"
-#include "damage.inc"
-#include "xinput.inc"
-#include "xkb.inc"
+const struct extension *extensions;
+size_t num_extensions;
 
-#define EXT(a,b) { a , sizeof(a)-1, \
-	extension ## b, NUM(extension ## b), \
-	events ## b, NUM(events ## b), \
-	errors ## b, NUM(errors ## b)}
-struct extension extensions[] = {
-	EXT("MIT-SHM",MITSHM),
-	EXT("RANDR",RANDR),
-	EXT("XINERAMA",XINERAMA),
-	EXT("XInputExtension",XInput),
-	EXT("XKEYBOARD",Xkb),
-	EXT("RENDER",RENDER),
-	EXT("SHAPE",SHAPE),
-	EXT("BIG-REQUESTS",BIGREQUEST),
-	EXT("XFree86-VidModeExtension",XF86VidMode),
-	EXT("XFree86-Bigfont",XF86Bigfont),
-	EXT("DPMS",DPMS),
-	EXT("XFIXES",FIXES),
-	EXT("DAMAGE",DAMAGE),
-	EXT("MIT-SCREEN-SAVER",Saver)
-};
-#undef EXT
-
-struct extension *find_extension(const uint8_t *name,size_t len) {
+const struct extension *find_extension(const uint8_t *name,size_t len) {
 	unsigned int i;
-	for( i = 0 ; i < NUM(extensions) ; i++ ) {
+	for( i = 0 ; i < num_extensions ; i++ ) {
 		if( len < extensions[i].namelen )
 			continue;
 // TODO: why only compare up the length here?

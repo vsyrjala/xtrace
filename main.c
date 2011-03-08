@@ -32,6 +32,8 @@
 #include <getopt.h>
 
 #include "xtrace.h"
+#include "stringlist.h"
+#include "translate.h"
 
 FILE *out;
 
@@ -423,10 +425,19 @@ int main(int argc, char *argv[]) {
 	const char *msg;
 	int c;
 	const char *out_authfile=NULL, *in_authfile = NULL;
+	struct parser *parser;
+
+	stringlist_init();
+	parser = parser_init();
+	if( parser == NULL )
+		return EXIT_FAILURE;
 
 	out = stdout;
-	while( (c=getopt_long(argc,argv,"+d:D:f:F:cnWskiewm:o:b",longoptions,NULL)) != -1 ) {
+	while( (c=getopt_long(argc,argv,"+I:d:D:f:F:cnWskiewm:o:b",longoptions,NULL)) != -1 ) {
 		switch( c ) {
+		 case 'I':
+			 add_searchpath(parser, optarg);
+			 break;
 		 case 'd':
 			 out_displayname = optarg;
 			 break;
@@ -524,6 +535,12 @@ argv[0]);
 		}
 
 	}
+	add_searchpath(parser, PKGDATADIR);
+	translate(parser, "all.proto");
+	finalize_everything(parser);
+	if( !parser_free(parser) ) {
+		return EXIT_FAILURE;
+	}
 
 	signal(SIGPIPE,SIG_IGN);
 	if( out_displayname == NULL ) {
@@ -574,5 +591,6 @@ argv[0]);
 			return EXIT_FAILURE;
 		}
 	}
+	stringlist_done();
 	return r;
 }
