@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,7 +21,7 @@
 		    Robert W. Scheifler
 		     X Consortium, Inc.
 
-with the following trademark and copyright notices and acknowlegdgments: 
+with the following trademark and copyright notices and acknowlegdgments:
 
 X Window System is a trademark of X Consortium, Inc.
 
@@ -756,7 +755,7 @@ static const struct parameter returnGetProperty[] = {
 
 static const struct parameter returnListProperties[] = {
 	{	8,	"#",		ft_COUNT16,	NULL},
-	{	32,	"atoms",	ft_LISTofATOM,	NULL}, 
+	{	32,	"atoms",	ft_LISTofATOM,	NULL},
 	EOP
 };
 
@@ -916,7 +915,7 @@ static const struct parameter listTIMECOORD[] = {
 
 static const struct parameter returnGetMotionEvents[] = {
 	{	8,	"#",	ft_COUNT32,	NULL},
-	{	32,	"events",ft_LISTofTIMECOORD}, 
+	{	32,	"events",ft_LISTofTIMECOORD},
 	EOP
 };
 
@@ -1063,12 +1062,18 @@ static const struct parameter parameterListFonts[] = {
 	EOP
 };
 
+static const struct parameter listSTRING8[] = {
+	LC(1),
+	{	0,	"c",	ft_COUNT8,	NULL},
+	{	1,	"s",	ft_STRING8,	NULL},
+	EOP
+};
+
+#define ft_LISTofSTRING8 ft_LISTofVarStruct,	(void*)listSTRING8
+
 static const struct parameter returnListFonts[] = {
-	{	8,	"number of answers",	ft_CARD16,	NULL},
-/*
-  n  LISTofSTR		 names
-  p			 unused, p=pad(n)
-  */
+	{	 8,	"number of answers",	ft_COUNT16,	NULL},
+	{	32,	"names",		ft_LISTofSTRING8},
 	EOP
 };
 
@@ -1101,7 +1106,7 @@ static const struct parameter returnListFontsWithInfo[] = {
 
 static const struct parameter parameterSetFontPath[] = {
 	{	4,	"number of STRs in path",	ft_CARD16,	NULL},
-/*	{	8,	"path",	ft_LISTofSTR,	NULL}, */
+	{	8,	"path",				ft_LISTofSTRING8}, 
 	EOP
 };
 
@@ -1109,7 +1114,7 @@ static const struct parameter parameterSetFontPath[] = {
 
 static const struct parameter returnGetFontPath[] = {
 	{	8,	"number of STRs in path",	ft_CARD16,	NULL},
-/*	{	32,	"path",	ft_LISTofSTR,	NULL}, */
+	{	32,	"path",				ft_LISTofSTRING8},
 	EOP
 };
 
@@ -1711,10 +1716,7 @@ static const struct parameter returnQueryExtension[] = {
 
 static const struct parameter returnListExtensions[] = {
 	{	1,	"number of STRs in names",	ft_CARD8,	NULL},
-/* ofs 32:
-  n  LISTofSTR		 names
-  p			 unused, p=pad(n)
-*/
+	{	32,	"names",			ft_LISTofSTRING8},
 	EOP
 };
 
@@ -1948,7 +1950,7 @@ static const struct request requests[] = {
 	ra(SendEvent),
 	rb(GrabPointer),
 	ra(UngrabPointer),
-	ra(GrabButton), 
+	ra(GrabButton),
 	ra(UngrabButton),
 	ra(ChangeActivePointerGrab), /*30*/
 	rb(GrabKeyboard),

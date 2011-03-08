@@ -1,3 +1,12 @@
+2006-07-24
+	* add support for XFree86-VidModeExtension extension
+2006-07-14
+	* switch to stdint.h and uint* instead of u_int*
+	* use getaddrinfo instead of gethostbyname2
+	* implement fall-backs for strndup and asprintf
+2006-07-12
+	* print stringlists in ListFonts, SetFontPath, GetFontPath  and 
+	  ListExtensions
 2006-06-10
 	* fix ATOMs to be 32 bit
 	* ChangeProperty pretty-prints types STRING and ATOM now

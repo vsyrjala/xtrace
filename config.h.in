@@ -1,5 +1,14 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the `asprintf' function. */
+#undef HAVE_ASPRINTF
+
+/* Define to 1 if you have the `socket' function. */
+#undef HAVE_SOCKET
+
+/* Define to 1 if you have the `strndup' function. */
+#undef HAVE_STRNDUP
+
 /* Name of package */
 #undef PACKAGE
 
@@ -20,3 +29,6 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* To tell glibc to make strndup visible */
+#undef _GNU_SOURCE

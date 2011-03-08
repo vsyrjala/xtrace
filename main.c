@@ -1,9 +1,8 @@
 /*  This file is part of "xtrace"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,6 +17,7 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <signal.h>
@@ -89,7 +89,7 @@ static int mainqueue(int listener) {
 		FD_ZERO(&exceptfds);
 		FD_SET(listener,&readfds);
 
-		c = connections ; 
+		c = connections;
 		while( c != NULL ) {
 			if( c->client_fd != -1 && c->server_fd == -1 && c->servercount == 0 ) {
 				close(c->client_fd);
@@ -310,6 +310,18 @@ static int mainqueue(int listener) {
 	return EXIT_SUCCESS;
 }
 
+#ifndef HAVE_STRNDUP
+/* That's not the best possible strndup implementation, but it suffices for what
+ * it is used here */
+char *strndup(const char *str,size_t n) {
+	char *r = malloc(n+1);
+	if( r == NULL )
+		return r;
+	memcpy(r,str,n);
+	r[n] = '\0';
+	return r;
+}
+#endif
 
 static const struct option longoptions[] = {
 	{"display",	required_argument,	NULL,	'd'},
@@ -430,7 +442,7 @@ argv[0]);
 	if( copyauth ) {
 		/* TODO: normalize them? or keep them so the user has more
 		 * control? */
-		if( !copy_authentication(in_displayname,out_displayname,in_authfile,out_authfile) ) 
+		if( !copy_authentication(in_displayname,out_displayname,in_authfile,out_authfile) )
 			return -1;
 	}
 	listener = listenForClients(in_displayname,in_family,in_display);
