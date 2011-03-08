@@ -1,0 +1,36 @@
+xtrace (0.4-1) unstable; urgency=low
+
+  * updated manpage (Closes: #355779)
+  * add support for RANDR extension
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  9 Mar 2006 11:14:15 +0100
+
+xtrace (0.3-1) unstable; urgency=low
+
+  * add support for RENDER extension
+  * int16 now really printed as int16 and not uint16
+  * support copyauth for "ssh -X".
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 28 Feb 2006 15:55:28 +0100
+
+xtrace (0.2.1-1) unstable; urgency=low
+
+  * hot fix for segfault with -k
+    - extension cleanup for multiple connections while we are at it
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  3 Dec 2005 18:01:02 +0100
+
+xtrace (0.2-1) unstable; urgency=low
+
+  * new version
+    - some cleanups
+    - now supports SHAPE extension
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  3 Dec 2005 15:36:37 +0100
+
+xtrace (0.1-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 13 Nov 2005 15:10:04 +0100
+
