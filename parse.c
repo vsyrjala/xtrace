@@ -1,5 +1,5 @@
 /*  This file is part of "xtrace"
- *  Copyright (C) 2005,2006 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -19,9 +19,11 @@
 #include <values.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -30,11 +32,38 @@
 
 #include "xtrace.h"
 
+enum package_direction { TO_SERVER, TO_CLIENT };
+
+static void startline(struct connection *c, enum package_direction d, const char *format, ...) FORMAT(printf,3,4);
+
 static const bool print_counts = false;
 static const bool print_offsets = false;
 
 static inline unsigned int padded(unsigned int s) {
 	return (s+3)&(~3);
+}
+
+static void startline(struct connection *c, enum package_direction d, const char *format, ...) {
+	va_list ap;
+	struct timeval tv;
+
+	if( (print_timestamps || print_reltimestamps)
+			&& gettimeofday(&tv, NULL) == 0 ) {
+		if( print_timestamps )
+			fprintf(out, "%lu.%3u ", (unsigned long)tv.tv_sec,
+					(unsigned int)(tv.tv_usec/1000));
+		if( print_reltimestamps ) {
+			unsigned long long tt = ((unsigned long long)1000)*tv.tv_sec +
+						(tv.tv_usec/1000);
+			fprintf(out, "%lu.%3u ",
+				(unsigned long)((tt - c->starttime)/1000),
+				(unsigned int)((tt - c->starttime)%1000));
+		}
+	}
+	va_start(ap, format);
+	fprintf(out, "%03d:%c:", c->id, (d == TO_SERVER)?'<':'>');
+	vfprintf(out, format, ap);
+	va_end(ap);
 }
 
 #define U256 ((unsigned int)256)
@@ -55,8 +84,6 @@ static inline unsigned int padded(unsigned int s) {
 #define getBE32(ofs) (((buffer[ofs]*256+buffer[ofs+1])*256+buffer[ofs+2])*256+buffer[ofs+4])
 
 #define NUM(array) (sizeof(array)/sizeof(array[0]))
-
-typedef const unsigned char u8;
 
 struct constant {
 	unsigned long value;
@@ -161,7 +188,7 @@ struct expectedreply {
 	void *data;
 };
 
-struct extension *find_extension(u8 *name,size_t len);
+struct extension *find_extension(const uint8_t *name,size_t len);
 
 static void print_bitfield(const char *name,const struct constant *constants, unsigned long l){
 	const struct constant *c;
@@ -252,6 +279,7 @@ struct parameter {
 		ft_EVENT,
 		/* jump to other parameter list if matches */
 		ft_IF8,
+		ft_IF16,
 		/* jump to other parameter list if matches atom name */
 		ft_IFATOM,
 		/* set end of last list manually, (for LISTofVarStruct) */
@@ -261,12 +289,18 @@ struct parameter {
 		/* always big endian */
 		ft_BE32,
 		/* get the #ofs value from the stack. (0 is the last pushed) */
-		ft_GET
+		ft_GET,
+		/* a fixed-point number 16+16 bit */
+		ft_FIXED,
+		/* a list of those */
+		ft_LISTofFIXED,
+		/* set stored value to specific value */
+		ft_SET
 		} type;
 	const struct constant *constants;
 };
 
-static size_t printSTRING8(u8 *buffer,size_t buflen,const struct parameter *p,size_t len,size_t ofs){
+static size_t printSTRING8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len,size_t ofs){
 	size_t nr = 0;
 
 	if( buflen < ofs )
@@ -298,7 +332,7 @@ static size_t printSTRING8(u8 *buffer,size_t buflen,const struct parameter *p,si
 	return ofs;
 }
 
-static size_t printLISTofCARD8(u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofCARD8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -333,7 +367,7 @@ static size_t printLISTofCARD8(u8 *buffer,size_t buflen,const struct parameter *
 	return ofs;
 }
 
-static size_t printLISTofCARD16(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofCARD16(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -368,7 +402,7 @@ static size_t printLISTofCARD16(struct connection *c,u8 *buffer,size_t buflen,co
 	return ofs;
 }
 
-static size_t printLISTofCARD32(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofCARD32(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -403,7 +437,39 @@ static size_t printLISTofCARD32(struct connection *c,u8 *buffer,size_t buflen,co
 	return ofs;
 }
 
-static size_t printLISTofATOM(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofFIXED(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+	bool notfirst = false;
+	size_t nr = 0;
+
+	if( buflen < ofs )
+		return ofs;
+	if( (buflen - ofs)/4 <= len )
+		len = (buflen - ofs)/4;
+
+	if( print_offsets )
+		fprintf(out,"[%d]",(int)ofs);
+	fprintf(out,"%s=",p->name);
+	while( len > 0 ) {
+		int32_t i32;
+		double d;
+
+		if( nr == maxshownlistlen ) {
+			fputs(",...",out);
+		} else if( nr < maxshownlistlen ) {
+			if( notfirst )
+				putc(',',out);
+			notfirst = true;
+			i32 = getCARD32(ofs);
+			d = i32 / 65536.0;
+			fprintf(out,"%.6f", d);
+		}
+		len--;ofs+=4;nr++;
+	}
+	putc(';',out);
+	return ofs;
+}
+
+static size_t printLISTofATOM(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -440,7 +506,7 @@ static size_t printLISTofATOM(struct connection *c,u8 *buffer,size_t buflen,cons
 	return ofs;
 }
 
-static size_t printLISTofUINT8(u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofUINT8(const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -475,7 +541,7 @@ static size_t printLISTofUINT8(u8 *buffer,size_t buflen,const struct parameter *
 	return ofs;
 }
 
-static size_t printLISTofUINT16(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofUINT16(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -510,7 +576,7 @@ static size_t printLISTofUINT16(struct connection *c,u8 *buffer,size_t buflen,co
 	return ofs;
 }
 
-static size_t printLISTofUINT32(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
+static size_t printLISTofUINT32(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t len, size_t ofs){
 	bool notfirst = false;
 	size_t nr = 0;
 
@@ -554,7 +620,7 @@ struct value {
 	const struct constant *constants;
 };
 
-static size_t printLISTofVALUE(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *param,unsigned long valuemask, size_t ofs){
+static size_t printLISTofVALUE(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *param,unsigned long valuemask, size_t ofs){
 
 	const struct value *v = (const struct value*)param->constants;
 	const char *atom;
@@ -685,7 +751,7 @@ static void pop(struct stack *stack UNUSED, struct stack *oldstack UNUSED) {
 
 static size_t print_parameters(struct connection *c,const unsigned char *buffer,unsigned int len, const struct parameter *parameters, bool bigrequest, struct stack *oldstack);
 
-static size_t printLISTofStruct(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t count, size_t ofs, struct stack *stack){
+static size_t printLISTofStruct(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t count, size_t ofs, struct stack *stack){
 	bool notfirst = false;
 	/* This is a gross hack: the constants for ft_LISTofStruct are
 	 * in reality a parameter structure */
@@ -723,7 +789,7 @@ static size_t printLISTofStruct(struct connection *c,u8 *buffer,size_t buflen,co
 	putc(';',out);
 	return ofs;
 }
-static size_t printLISTofVarStruct(struct connection *c,u8 *buffer,size_t buflen,const struct parameter *p,size_t count, size_t ofs, struct stack *stack){
+static size_t printLISTofVarStruct(struct connection *c,const uint8_t *buffer,size_t buflen,const struct parameter *p,size_t count, size_t ofs, struct stack *stack){
 	bool notfirst = false;
 //	size_t ofs = (p->offset<0)?lastofs:p->offset;
 	const struct parameter *substruct = (const void*)p->constants;
@@ -747,8 +813,11 @@ static size_t printLISTofVarStruct(struct connection *c,u8 *buffer,size_t buflen
 			 * so just return the unreachable */
 			return SIZE_MAX;
 		}
-		if( notfirst )
+		if( notfirst ) {
 			putc(',',out);
+			if( print_offsets )
+				fprintf(out,"[%d]",(int)ofs);
+		}
 		notfirst = true;
 		putc('{',out);
 
@@ -784,6 +853,7 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		size_t ofs;
 		const char *value;
 		const char *atom;
+		double d;
 
 		if( p->offse == OFS_LATER )
 			ofs = lastofs;
@@ -803,14 +873,20 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 			  getCARD8(ofs) == (unsigned char)(p->name[0]) )
 				p = ((struct parameter *)p->constants)-1;
 			continue;
+		} else if( p->type == ft_IF16 ) {
+			if( ofs+1 < len &&
+			  getCARD16(ofs) == (unsigned char)(p->name[1]) 
+			  + (unsigned char)0x100*(unsigned char)(p->name[0]))
+				p = ((struct parameter *)p->constants)-1;
+			continue;
 		} else if( p->type == ft_IFATOM ) {
-			const char *atom;
+			const char *atomname;
 			if( ofs+4 >= len )
 				continue;
-			atom = getAtom(c, getCARD32(ofs));
-			if( atom == NULL )
+			atomname = getAtom(c, getCARD32(ofs));
+			if( atomname == NULL )
 				continue;
-			if( strcmp(atom, p->name) == 0 )
+			if( strcmp(atomname, p->name) == 0 )
 				p = ((struct parameter *)p->constants)-1;
 			continue;
 		}
@@ -878,6 +954,19 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofVALUE:
 			lastofs = printLISTofVALUE(c,buffer,len,p,stored,ofs);
 			continue;
+		 case ft_FIXED:
+			if( ofs + 4 > len )
+				continue;
+			if( print_offsets )
+				fprintf(out,"[%d]",(int)ofs);
+			fputs(p->name,out);putc('=',out);
+			i32 = getCARD32(ofs);
+			d = i32 / 65536.0;
+			fprintf(out,"%.6f", d);
+			continue;
+		 case ft_LISTofFIXED:
+			lastofs = printLISTofFIXED(c,buffer,len,p,stored,ofs);
+			continue;
 		 case ft_EVENT:
 			if( len >= ofs + 32 )
 				print_event(c,buffer+ofs);
@@ -907,24 +996,33 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_GET:
 			stored = getFromStack(&newstack,p->offse);
 			continue;
+		 case ft_SET:
+			stored = p->offse;
+			continue;
 		 default:
 			break;
 		}
 		assert( p->type <= ft_BITMASK32);
 
-		if( ((ofs+4)&~3) > len )
-			/* this field is missing */
-			continue;
 		switch( p->type % 3) {
 		 case 0:
+			 if( (ofs+1) > len )
+				 /* this field is missing */
+				 continue;
 			 u8 = getCARD8(ofs);
 			 l = u8;
 			 break;
 		 case 1:
+			 if( (ofs+2) > len )
+				 /* this field is missing */
+				 continue;
 			 u16 = getCARD16(ofs);
 			 l = u16;
 			 break;
 		 case 2:
+			 if( (ofs+4) > len )
+				 /* this field is missing */
+				 continue;
 			 u32 = getCARD32(ofs);
 			 l = u32;
 			 break;
@@ -1017,12 +1115,16 @@ static size_t print_parameters(struct connection *c,const unsigned char *buffer,
 		 case ft_LISTofStruct:
 		 case ft_LISTofVarStruct:
 		 case ft_IF8:
+		 case ft_IF16:
 		 case ft_IFATOM:
 		 case ft_BE32:
 		 case ft_ATOM:
 		 case ft_LASTMARKER:
 		 case ft_GET:
+		 case ft_SET:
 		 case ft_EVENT:
+		 case ft_FIXED:
+		 case ft_LISTofFIXED:
 			 assert(0);
 		}
 		if( value != NULL ) {
@@ -1090,7 +1192,7 @@ static void replyListFontsWithInfo(struct connection *c,bool *ignore,bool *dontr
 	unsigned int seq = serverCARD16(2);
 	if( serverCARD8(1) == 0 ) {
 
-		fprintf(out,"%03d:>:0x%04x:%u: Reply to ListFontsWithInfo: end of list\n", c->id, seq, c->serverignore);
+		startline(c, TO_CLIENT, "%04x:%u: Reply to ListFontsWithInfo: end of list\n", seq, c->serverignore);
 		*ignore = true;
 	} else
 		*dontremove = true;
@@ -1143,6 +1245,8 @@ static void replyInternAtom(struct connection *c,bool *ignore UNUSED,bool *dontr
 #define ft_COUNT8 ft_STORE8
 #define ft_COUNT16 ft_STORE16
 #define ft_COUNT32 ft_STORE32
+#define RESET_COUNTER	{ INT_MAX,	"",		ft_SET,		NULL}
+#define SET_COUNTER(cnt)	{ cnt,	"",		ft_SET,		NULL}
 #include "requests.inc"
 
 static inline void free_expectedreplylist(struct expectedreply *r) {
@@ -1207,13 +1311,13 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 		ignore = r->request_func(c,true,bigrequest,NULL);
 	if( !ignore ) {
 		if( extensionname[0] == '\0' )
-			fprintf(out,"%03d:<:%04x:%3u: Request(%hhu): %s ",
-				c->id,(unsigned int)(c->seq),c->clientignore,
+			startline(c, TO_SERVER, "%04x:%3u: Request(%hhu): %s ",
+				(unsigned int)(c->seq),c->clientignore,
 				req, r->name
 		      );
 		else
-			fprintf(out,"%03d:<:%04x:%3u: %s-Request(%hhu,%hhu): %s ",
-				c->id, (unsigned int)(c->seq),
+			startline(c, TO_SERVER, "%04x:%3u: %s-Request(%hhu,%hhu): %s ",
+				(unsigned int)(c->seq),
 				c->clientignore,
 				extensionname, req, subreq,
 				r->name
@@ -1242,7 +1346,7 @@ static inline void print_client_request(struct connection *c,bool bigrequest) {
 
 static inline void print_server_event(struct connection *c) {
 
-	fprintf(out,"%03d:>:%04llx: Event ",c->id,(unsigned long long)c->seq);
+	startline(c, TO_CLIENT, "%04llx: Event ", (unsigned long long)c->seq);
 	print_event(c,c->serverbuffer);
 	putc('\n',out);
 }
@@ -1274,7 +1378,7 @@ static inline void print_server_reply(struct connection *c) {
 				replyto->from->reply_func(c,&ignore,&dontremove,replyto->datatype,replyto->data);
 
 			if( !ignore ) {
-				fprintf(out,"%03d:>:0x%04x:%u: Reply to %s: ", c->id, seq, (unsigned int)c->serverignore,replyto->from->name);
+				startline(c, TO_CLIENT, "%04x:%u: Reply to %s: ", seq, (unsigned int)c->serverignore,replyto->from->name);
 				print_parameters(c,
 					c->serverbuffer,len,replyto->from->answers,false,&stack);
 				putc('\n',out);
@@ -1282,15 +1386,15 @@ static inline void print_server_reply(struct connection *c) {
 			if( !dontremove ) {
 				*lastp = replyto->next;
 				if( replyto->next != NULL ) {
-					fprintf(stderr,"%03d:>: still waiting for reply to seq=%04llx\n",c->id,(unsigned long long)replyto->next->seq);
+					startline(c, TO_CLIENT, " still waiting for reply to seq=%04llx\n", (unsigned long long)replyto->next->seq);
 				}
 				free(replyto);
 			}
 			return;
 		}
 	}
-	fprintf(out,"%03d:>:%04x:%u: unexpected reply\n",
-			c->id, seq, c->serverignore);
+	startline(c, TO_CLIENT, "%04x:%u: unexpected reply\n",
+			seq, c->serverignore);
 }
 
 const char *errors[] = {
@@ -1325,8 +1429,7 @@ static inline void print_server_error(struct connection *c) {
 
 	}
 	seq = (unsigned int)serverCARD16(2);
-	fprintf(out,"%03d:>:%x:Error %hhu=%s: major=%u, minor=%u, bad=%u\n",
-			c->id,
+	startline(c, TO_CLIENT, "%x:Error %hhu=%s: major=%u, minor=%u, bad=%u\n",
 			seq,
 			cmd,
 			errorname,
@@ -1358,7 +1461,7 @@ void parse_client(struct connection *c) {
 		 else if( c->clientbuffer[0] == 'l' )
 			 c->bigendian = false;
 		 else  {
-			fprintf(stderr,"%03d:<: Byteorder (%d='%c') is neighter 'B' nor 'l', ignoring all further data!",c->id,(int)c->clientbuffer[0],c->clientbuffer[0]);
+			startline(c, TO_SERVER, " Byteorder (%d='%c') is neither 'B' nor 'l', ignoring all further data!", (int)c->clientbuffer[0],c->clientbuffer[0]);
 			c->clientstate = c_amlost;
 			c->serverstate = s_amlost;
 			return;
@@ -1370,8 +1473,7 @@ void parse_client(struct connection *c) {
 		 }
 		 c->clientignore =  l;
 
-		 fprintf(out,"%03d:<: am %s want %d:%d authorising with '%*s' of length %d\n",
-				 c->id,
+		 startline(c, TO_SERVER, " am %s want %d:%d authorising with '%*s' of length %d\n",
 				 c->bigendian?"msb-first":"lsb-first",
 				 (int)clientCARD16(2),
 				 (int)clientCARD16(4),
@@ -1382,13 +1484,13 @@ void parse_client(struct connection *c) {
 		 return;
 	 case c_normal:
 		 if( c->clientcount < 4 ) {
-			 fprintf(out,"%03d:<: Warning: Waiting for rest of package (yet only got %u)!\n",c->id,c->clientcount);
+			 startline(c, TO_SERVER, " Warning: Waiting for rest of package (yet only got %u)!\n", c->clientcount);
 			 return;
 		 }
 		 l = 4*clientCARD16(2);
 		 if( l == 0 ) {
 			 if( c->clientcount < 8 ) {
-				 fprintf(out,"%03d:<: Warning: Waiting for rest of package (yet only got %u)!\n",c->id,c->clientcount);
+				 startline(c, TO_SERVER, " Warning: Waiting for rest of package (yet only got %u)!\n", c->clientcount);
 				 return;
 			 }
 			 l = 4*clientCARD32(4);
@@ -1396,9 +1498,9 @@ void parse_client(struct connection *c) {
 		 } else
 			 bigrequest = false;
 		 if( c->clientcount == sizeof(c->clientbuffer) )
-			 fprintf(out,"%03d:<: Warning: buffer filled!\n",c->id);
+			 startline(c, TO_SERVER, " Warning: buffer filled!\n");
 		 else if( c->clientcount < l ) {
-			 fprintf(out,"%03d:<: Warning: Waiting for rest of package (yet got %u of %u)!\n",c->id,c->clientcount,(unsigned int)l);
+			 startline(c, TO_SERVER, " Warning: Waiting for rest of package (yet got %u of %u)!\n", c->clientcount,(unsigned int)l);
 			 return;
 		 }
 		 c->clientignore = l;
@@ -1431,20 +1533,17 @@ void parse_server(struct connection *c) {
 		 cmd = serverCARD16(0);
 		 switch( cmd ) {
 		  case 0:
-			  fprintf(out,"%03d:>: Failed, version is %d:%d reason is '%*s'.\n",
-					 c->id,
+			  startline(c, TO_CLIENT, " Failed, version is %d:%d reason is '%*s'.\n",
 					 (int)serverCARD16(2),
 					 (int)serverCARD16(4),
 					 (int)(4*len),
 					 &c->serverbuffer[8]);
 		  case 2:
-			  fprintf(out,"%03d:>: More authentication needed, reason is '%*s'.\n",
-					 c->id,
+			  startline(c, TO_CLIENT, " More authentication needed, reason is '%*s'.\n",
 					 (int)(4*len),
 					 &c->serverbuffer[8]);
 		  case 1:
-			  fprintf(out,"%03d:>: Success, version is %d:%d-%d.\n",
-					 c->id,
+			  startline(c, TO_CLIENT, " Success, version is %d:%d-%d.\n",
 					 (int)serverCARD16(2),
 					 (int)serverCARD16(4),
 					 (int)serverCARD16(8));
@@ -1521,6 +1620,8 @@ static void print_event(struct connection *c,const unsigned char *buffer) {
 #include "saver.inc"
 #include "fixes.inc"
 #include "damage.inc"
+#include "xinput.inc"
+#include "xkb.inc"
 
 #define EXT(a,b) { a , sizeof(a)-1, \
 	extension ## b, NUM(extension ## b), \
@@ -1530,6 +1631,8 @@ struct extension extensions[] = {
 	EXT("MIT-SHM",MITSHM),
 	EXT("RANDR",RANDR),
 	EXT("XINERAMA",XINERAMA),
+	EXT("XInputExtension",XInput),
+	EXT("XKEYBOARD",Xkb),
 	EXT("RENDER",RENDER),
 	EXT("SHAPE",SHAPE),
 	EXT("BIG-REQUESTS",BIGREQUEST),
@@ -1542,7 +1645,7 @@ struct extension extensions[] = {
 };
 #undef EXT
 
-struct extension *find_extension(u8 *name,size_t len) {
+struct extension *find_extension(const uint8_t *name,size_t len) {
 	unsigned int i;
 	for( i = 0 ; i < NUM(extensions) ; i++ ) {
 		if( len < extensions[i].namelen )

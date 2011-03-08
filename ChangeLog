@@ -1,3 +1,28 @@
+2009-06-01
+	* complete XInputExtension support (if there is a price for worst
+	documented extension, this would be my current candidate)
+2009-05-19
+	* omit "0x" when printing the sequence number for replies, to
+	make the output more consistent with requests and events.
+2009-04-18
+	* start with XInputExtension support (only some opcodes yet)
+2009-04-16
+	* add --timestamps and --relative-timestamps options to print
+	timestamps before each line.
+2009-04-04
+	* move start of output lines generation into common function
+	(this makes some messages that until now got to stderr to go
+	 to the usual output, too. While that might hide them a bit,
+	 this also ensures they appear at the right place, which might
+	 be better).
+2009-03-25
+	* Properly set the address family when listening on a tcp socket
+2009-02-19
+	* fix decoding of GetAtomName reply
+	* (cosmetic) use ft_RRCONFIGSTATUS for RRSetScreenConfig reply
+	* fix decoding of RRGetOutputInfo reply
+	* display FIXED as fixed-point numbers
+	* RandR 1.3 support
 2009-01-06
 	* fix decoding of ConfigureWindow request
 	(thanks to Yann Droneaud)
