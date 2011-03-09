@@ -4,8 +4,8 @@ Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.9.1
-Vcs-Browser: http://alioth.debian.org/scm/viewvc.php/xtrace/?root=xtrace
-Vcs-Cvs: :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/xtrace xtrace
+Vcs-Browser: http://git.debian.org/?p=xtrace/xtrace.git;a=shortlog;h=refs/heads/debian
+Vcs-Git: git://git.debian.org/xtrace/xtrace.git --branch debian
 Homepage: http://xtrace.alioth.debian.org/
 
 Package: xtrace
