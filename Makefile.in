@@ -40,7 +40,7 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 	$(dist_pkgdata_DATA) $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
-	ac/depcomp ac/install-sh ac/missing depcomp install-sh missing
+	ac/depcomp ac/install-sh ac/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -60,8 +60,6 @@ am_xtrace_OBJECTS = main.$(OBJEXT) x11common.$(OBJEXT) \
 	stringlist.$(OBJEXT)
 xtrace_OBJECTS = $(am_xtrace_OBJECTS)
 xtrace_LDADD = $(LDADD)
-xtrace_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(xtrace_LDFLAGS) \
-	$(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__depfiles_maybe = depfiles
@@ -198,13 +196,12 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = @CPPFLAGS@ -Wall -DPKGDATADIR='"$(pkgdatadir)"'
+AM_CPPFLAGS = -DPKGDATADIR='"$(pkgdatadir)"'
 xtrace_SOURCES = main.c x11common.c x11client.c x11server.c parse.c copyauth.c atoms.c translate.c stringlist.c
-xtrace_LDFLAGS = -Wl,-z,defs
 noinst_HEADERS = xtrace.h parse.h stringlist.h translate.h
 dist_man_MANS = xtrace.1
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/configure $(srcdir)/stamp-h.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in
-dist_pkgdata_DATA = all.proto bigfont.proto bigrequest.proto damage.proto dpms.proto dri2.proto errors.proto events.proto fixes.proto genericevents.proto glx.proto mitshm.proto randr.proto render.proto requests.proto saver.proto setup.proto shape.proto sync.proto vidmode.proto xinerama.proto xinput.proto xkb.proto xvideo.proto composite.proto
+dist_pkgdata_DATA = all.proto bigfont.proto bigrequest.proto damage.proto dpms.proto dri2.proto errors.proto events.proto fixes.proto genericevents.proto glx.proto mitshm.proto randr.proto render.proto requests.proto saver.proto setup.proto shape.proto sync.proto vidmode.proto xinerama.proto xinput.proto xkb.proto xvideo.proto composite.proto dga.proto
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -300,7 +297,7 @@ clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 xtrace$(EXEEXT): $(xtrace_OBJECTS) $(xtrace_DEPENDENCIES) 
 	@rm -f xtrace$(EXEEXT)
-	$(xtrace_LINK) $(xtrace_OBJECTS) $(xtrace_LDADD) $(LIBS)
+	$(LINK) $(xtrace_OBJECTS) $(xtrace_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -731,8 +728,6 @@ uninstall-man: uninstall-man1
 	uninstall-am uninstall-binPROGRAMS uninstall-dist_pkgdataDATA \
 	uninstall-man uninstall-man1
 
-
-CFLAGS ?= -g -O2
 
 distclean-local:
 	-rm -rf $(srcdir)/autom4te.cache
