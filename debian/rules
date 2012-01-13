@@ -5,17 +5,15 @@
 
 # These are used for cross-compiling and for saving the configure script
 # from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE   := $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+CFLAGS              := $(shell dpkg-buildflags --get CFLAGS)
+CPPFLAGS            := $(shell dpkg-buildflags --get CPPFLAGS)
+LDFLAGS             := $(shell dpkg-buildflags --get LDFLAGS)
 
-export DEB_BUILD_OPTIONS
+CFLAGS += -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wshadow
+LDFLAGS += -Wl,-z,defs
 
-CFLAGS = -Wall -g -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wshadow
-ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O0
-else
-	CFLAGS += -O2
-endif
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
@@ -25,7 +23,7 @@ config.status: configure
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		--prefix=/usr --mandir=\$${prefix}/share/man \
 		--disable-dependency-tracking \
-		CFLAGS="$(CFLAGS)" CPPFLAGS="" LDFLAGS="-Wl,-z,defs" \
+		CFLAGS='$(CFLAGS)' CPPFLAGS='$(CPPFLAGS)' LDFLAGS='$(LDFLAGS)' \
 	|| ( echo configure failed with $$? ; cat config.log ; exit 1 )
 
 build-indep:
