@@ -6,8 +6,9 @@ xtrace (1.3.0-1) unstable; urgency=low
   * update debian/copyright
   * use dpkg-buildflags
   * bump Standards-Version
+  * update Vcs- fields
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 13 Jan 2012 11:55:33 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 13 Jan 2012 11:58:47 +0100
 
 xtrace (1.2.0-1) unstable; urgency=low
 
