@@ -3,8 +3,9 @@ xtrace (1.3.0-1) unstable; urgency=low
   * new release
   - support XFree86-DGA
   - fix misplaced paragraph in manpage (Closes: )
+  * update debian/copyright
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 13 Jan 2012 11:23:17 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 13 Jan 2012 11:25:04 +0100
 
 xtrace (1.2.0-1) unstable; urgency=low
 
