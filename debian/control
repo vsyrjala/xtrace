@@ -3,7 +3,7 @@ Section: x11
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 7)
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=xtrace/xtrace.git;a=shortlog;h=refs/heads/debian
 Vcs-Git: git://anonscm.debian.org/xtrace/xtrace.git -b debian
 Homepage: http://xtrace.alioth.debian.org/

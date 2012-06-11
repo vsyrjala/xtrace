@@ -2,8 +2,9 @@ xtrace (1.3.1-1) unstable; urgency=low
 
   * new bigfix release
   - fix parsing of unusual QueryExtension requests
+  * bump Standards-Version
 
- -- Bernhard R. Link <brlink@debian.org>  Mon, 11 Jun 2012 15:01:33 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 11 Jun 2012 15:07:01 +0200
 
 xtrace (1.3.0-1) unstable; urgency=low
 
