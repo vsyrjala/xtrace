@@ -120,6 +120,15 @@ RawKeyRelease		/* 14 */ UNSUPPORTED
 RawButtonPress		/* 15 */ UNSUPPORTED
 RawButtonRelease	/* 16 */ UNSUPPORTED
 RawMotion		/* 17 */ UNSUPPORTED
+TouchBegin              /* 18 */
+TouchUpdate             /* 19 */
+TouchEnd                /* 20 */
+TouchOwnership          /* 21 */ UNSUPPORTED
+RawTouchBegin           /* 22 */ UNSUPPORTED
+RawTouchUpdate          /* 23 */ UNSUPPORTED
+RawTouchEnd             /* 24 */ UNSUPPORTED
+BarrierHit              /* 25 */ UNSUPPORTED
+BarrierLeave            /* 26 */ UNSUPPORTED
 END
 
 CONSTANTS device_change
@@ -1356,6 +1365,9 @@ XGEVENT KeyRelease ALIASES Device
 XGEVENT ButtonPress ALIASES Device
 XGEVENT ButtonRelease ALIASES Device
 XGEVENT Motion ALIASES Device
+XGEVENT TouchBegin ALIASES Device
+XGEVENT TouchUpdate ALIASES Device
+XGEVENT TouchEnd ALIASES Device
 
 templateEVENT Notify
 10	deviceid	CARD8
