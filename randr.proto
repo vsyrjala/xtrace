@@ -116,6 +116,21 @@ GetPanning RESPONDS
 SetPanning RESPONDS
 SetOutputPrimary
 GetOutputPrimary RESPONDS
+# RandR 1.4:
+GetProviders RESPONDS UNSUPPORTED
+GetProviderInfo RESPONDS UNSUPPORTED
+SetProviderOffloadSink
+SetProviderOutputSource
+ListProviderProperties RESPONDS UNSUPPORTED
+QueryProviderProperty RESPONDS UNSUPPORTED
+ConfigureProviderProperty UNSUPPORTED
+ChangeProviderProperty UNSUPPORTED
+DeleteProviderProperty
+GetProviderProperty RESPONDS UNSUPPORTED
+# RandR 1.5:
+GetMonitors RESPONDS UNSUPPORTED
+SetMonitor UNSUPPORTED
+DeleteMonitor
 END
 
 EVENTS
@@ -127,6 +142,7 @@ ERRORS
 BadOutput
 BadCrtc
 BadMode
+BadProvider
 END
 
 CONSTANTS randr_notify
@@ -215,6 +231,7 @@ TYPE CRTC CARD32
 TYPE LISTofCRTC LISTofCARD32
 TYPE MODE CARD32
 TYPE LISTofMODE LISTofCARD32
+TYPE PROVIDER CARD32
 
 STRUCT MODEINFO length 32
  0	id	CARD32
@@ -578,6 +595,28 @@ REQUEST GetOutputPrimary
 END
 RESPONSE GetOutputPrimary
  8	output	OUTPUT
+END
+
+REQUEST SetProviderOffloadSink
+ 4	provider	PROVIDER
+ 8	sinkProvider	PROVIDER
+ 12	configTimestamp	TIMESTAMP
+END
+
+REQUEST SetProviderOutputSource
+ 4	provider	PROVIDER
+ 8	sourceProvider	PROVIDER
+ 12	configTimestamp	TIMESTAMP
+END
+
+REQUEST DeleteProviderProperty
+ 4	provider	PROVIDER
+ 8	property	ATOM
+END
+
+REQUEST DeleteMonitor
+ 4	window	WINDOW
+ 8	name	ATOM
 END
 
 EVENT RRScreenChangeNotify
