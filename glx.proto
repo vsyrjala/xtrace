@@ -26,8 +26,8 @@ glXDestroyContext
 glXMakeCurrent RESPONDS
 glXIsDirect RESPONDS
 glXQueryVersion RESPONDS
-glXWaitGL UNSUPPORTED
-glXWaitX UNSUPPORTED
+glXWaitGL
+glXWaitX
 glXCopyContext UNSUPPORTED /* 10 */
 glXSwapBuffers
 glXUseXFont UNSUPPORTED
@@ -160,7 +160,7 @@ glGetTexLevelParameterfv RESPONDS UNSUPPORTED
 glGetTexLevelParameteriv RESPONDS UNSUPPORTED
 glIsEnabled RESPONDS UNSUPPORTED /* 140 */
 glIsList RESPONDS UNSUPPORTED
-glFlush UNSUPPORTED
+glFlush
 glAreTexturesResident RESPONDS UNSUPPORTED
 glDeleteTextures UNSUPPORTED
 glGenTextures RESPONDS UNSUPPORTED
@@ -1278,6 +1278,16 @@ RESPONSE glXQueryVersion
 12	server_minor_version	UINT32
 END
 
+# opcode 8
+REQUEST glXWaitGL
+4	context_tag	CARD32
+END
+
+# opcode 9
+REQUEST glXWaitX
+4	context_tag	CARD32
+END
+
 # opcode 11
 REQUEST glXSwapBuffers
 4	context_tag	CARD32
@@ -1484,6 +1494,11 @@ END
 RESPONSE glGetString
 12	n	COUNT32
 32	string	STRING8
+END
+
+# opcode 142
+REQUEST glFlush
+4	context_tag	CARD32
 END
 
 EVENT PbufferClobber
