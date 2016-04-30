@@ -48,6 +48,12 @@ if test $ac_cv_func_socket = no; then
 LIBS="$LIBS -lsocket -lnsl"; break],[AC_MSG_ERROR([Could not find socket library function])])
 fi
 AC_CHECK_FUNC([getaddrinfo],,[AC_MSG_ERROR([Could not find getaddrinfo library function])])
+AC_SEARCH_LIBS(sendmsg, socket, [have_sendmsg="yes"], [have_sendmsg="no"])
+case x$have_sendmsg in
+xyes)
+        AC_DEFINE([HAVE_SENDMSG],1,[Define if your platform supports sendmsg])
+        ;;
+esac
 
 dnl AC_CHECK_HEADER(X11/X.h,[],[AC_MSG_ERROR([Could not find X11/X.h])])
 dnl AC_CHECK_HEADER(X11/Xlib.h,[],[AC_MSG_ERROR([Could not find X11/Xlib.h])])
