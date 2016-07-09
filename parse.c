@@ -1909,13 +1909,14 @@ static inline void print_server_error(struct connection *c) {
 
 	}
 	seq = (unsigned int)serverCARD16(2);
-	startline(c, TO_CLIENT, "%04x:Error %hhu=%s: major=%u, minor=%u, bad=%u\n",
+	startline(c, TO_CLIENT, "%04x:Error %hhu=%s: major=%u, minor=%u, bad=0x%08x, seq=%04x\n",
 			seq,
 			cmd,
 			errorname,
 			(int)serverCARD8(10),
 			(int)serverCARD16(8),
-			(int)serverCARD32(4));
+			(int)serverCARD32(4),
+                       (int)serverCARD16(2));
 	/* don't wait for any answer */
 	for( lastp = &c->expectedreplies ;
 			(replyto=*lastp) != NULL ; lastp=&replyto->next){
