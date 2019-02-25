@@ -26,34 +26,34 @@ glXDestroyContext
 glXMakeCurrent RESPONDS
 glXIsDirect RESPONDS
 glXQueryVersion RESPONDS
-glXWaitGL UNSUPPORTED
-glXWaitX UNSUPPORTED
-glXCopyContext UNSUPPORTED /* 10 */
+glXWaitGL
+glXWaitX
+glXCopyContext /* 10 */
 glXSwapBuffers
-glXUseXFont UNSUPPORTED
-glXCreateGLXPixmap UNSUPPORTED
+glXUseXFont
+glXCreateGLXPixmap
 glXGetVisualConfigs RESPONDS
-glXDestroyGLXPixmap UNSUPPORTED
-glXVendorPrivate UNSUPPORTED
+glXDestroyGLXPixmap
+glXVendorPrivate
 glXVendorPrivateWithReply RESPONDS
 glXQueryExtensionsString RESPONDS UNSUPPORTED
 glXQueryServerString RESPONDS
 glXClientInfo /* 20 */
 glXGetFBConfigs RESPONDS UNSUPPORTED
-glXCreatePixmap UNSUPPORTED
-glXDestroyPixmap UNSUPPORTED
-glXCreateNewContext UNSUPPORTED
+glXCreatePixmap
+glXDestroyPixmap
+glXCreateNewContext
 glXQueryContext RESPONDS UNSUPPORTED
-glXMakeContextCurrent RESPONDS UNSUPPORTED
-glXCreatePbuffer UNSUPPORTED
-glXDestroyPbuffer UNSUPPORTED
+glXMakeContextCurrent RESPONDS
+glXCreatePbuffer
+glXDestroyPbuffer
 glXGetDrawableAttributes RESPONDS UNSUPPORTED
 glXChangeDrawableAttributes UNSUPPORTED /* 30 */
-glXCreateWindow UNSUPPORTED
-glXDeleteWindow UNSUPPORTED
+glXCreateWindow
+glXDestroyWindow
 glXSetClientInfoARB UNSUPPORTED
 glXCreateContextAttribsARB UNSUPPORTED
-UNKNOWN
+glXSetClientInfo2ARB UNSUPPORTED
 UNKNOWN
 UNKNOWN
 UNKNOWN
@@ -160,7 +160,7 @@ glGetTexLevelParameterfv RESPONDS UNSUPPORTED
 glGetTexLevelParameteriv RESPONDS UNSUPPORTED
 glIsEnabled RESPONDS UNSUPPORTED /* 140 */
 glIsList RESPONDS UNSUPPORTED
-glFlush UNSUPPORTED
+glFlush
 glAreTexturesResident RESPONDS UNSUPPORTED
 glDeleteTextures UNSUPPORTED
 glGenTextures RESPONDS UNSUPPORTED
@@ -1278,10 +1278,45 @@ RESPONSE glXQueryVersion
 12	server_minor_version	UINT32
 END
 
+# opcode 8
+REQUEST glXWaitGL
+4	context_tag	CARD32
+END
+
+# opcode 9
+REQUEST glXWaitX
+4	context_tag	CARD32
+END
+
+# opcode 10
+REQUEST glXCopyContext
+4	source		CARD32
+8	dest		CARD32
+12	mask		CARD32
+16	context_tag	CARD32
+END
+
 # opcode 11
 REQUEST glXSwapBuffers
 4	context_tag	CARD32
 8	drawable	CARD32
+END
+
+# opcode 12
+REQUEST glXUseXFont
+4	context_tag	CARD32
+8	font		CARD32
+12	first		CARD32
+16	count		CARD32
+20	list_base	CARD32
+END
+
+#opcode 13
+REQUEST glXCreateGLXPixmap
+4	screen		CARD32
+8	visual		CARD32
+12	pixmap		CARD32
+16	glx_pixmap	CARD32
 END
 
 TYPE BOOL32 ENUM32 bool
@@ -1367,6 +1402,17 @@ RESPONSE glXGetVisualConfigs
 RESET_COUNTER
 END
 
+# opcode 15
+REQUEST glXDestroyGLXPixmap
+4	glx_pixmap	CARD32
+END
+
+# opcode 16
+REQUEST glXVendorPrivate
+4	vendor_code	CARD32
+8	context_tag	CARD32
+END
+
 CONSTANTS vendor_op
 65540	GetFBConfigsSGIX
 END
@@ -1428,6 +1474,70 @@ DECREMENT_COUNT 1
 # FIXME proper size
 END
 
+# opcode 22
+REQUEST glXCreatePixmap
+4	screen		CARD32
+8	fbconfig	CARD32
+12	pixmap		CARD32
+16	glx_pixmap	CARD32
+20	num_attribs	COUNT32
+END
+
+# opcode 23
+REQUEST glXDestroyPixmap
+4	glx_pixmap	CARD32
+END
+
+# opcode 24
+REQUEST glXCreateNewContext
+4	context		CARD32
+8	fbconfig	CARD32
+12	screen		CARD32
+16	render_type	CARD32
+20	share_list	CARD32
+24	is_direct	UINT8
+25	reserved1	UINT8
+26	reserved2	UINT16
+END
+
+# opcode 26
+REQUEST glXMakeContextCurrent
+4	old_context_tag	CARD32
+8	write_drawable	CARD32
+12	read_drawable	CARD32
+16	context		CARD32
+END
+RESPONSE glXMakeContextCurrent
+8	new_context_tag	CARD32
+END
+
+# opcode 27
+REQUEST glXCreatePbuffer
+4	screen		CARD32
+8	fbconfig	CARD32
+12	pbuffer		CARD32
+16	num_attribs	CARD32
+END
+
+# opcode 28
+REQUEST glXDestroyPbuffer
+4	pbuffer		CARD32
+END
+
+# opcode 31
+REQUEST glXCreateWindow
+4	screen		CARD32
+8	fbconfig	CARD32
+12	window		CARD32
+16	glx_window	CARD32
+20	num_attribs	CARD32
+END
+
+# opcode 32
+REQUEST glXDestroyWindow
+4	glx_window	CARD32
+END
+
 # opcode 117
 REQUEST glGetIntegerv
 4	context_tag	CARD32
@@ -1484,6 +1594,11 @@ END
 RESPONSE glGetString
 12	n	COUNT32
 32	string	STRING8
+END
+
+# opcode 142
+REQUEST glFlush
+4	context_tag	CARD32
 END
 
 EVENT PbufferClobber

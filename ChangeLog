@@ -1,3 +1,37 @@
+2019-02-25
+	* apply multiple patches:
+
+	+ from Robert Ancell
+	- glx: Add glXWaitGL, glXWaitX, glFlush requests
+	- randr: Add names of new messages from RandR 1.4 and 1.5
+	- glx: Recognise glXSetClientInfo2ARB
+	- render: Support extension version 0.10
+
+	+ from Miklós Máté
+	- print error in hex, add sequence number
+	- add definitions for a few common glx requests
+
+	+ from Qiang Yu
+    	- Add Present protocol
+    	- Add DRI3 protocol
+
+	+ from Robert O'Callahan
+    	- Support XI2 touch events
+    	- Change socket read/write to recvmsg/sendmsg for DRI3 support
+	- fix off-by-one error in event type check
+
+	+ from David Howells:
+	- fix in \ddd escape parsing
+	- fix some compiler warnings
+
+2013-05-26
+	* xinput: improve ValuatorClass (previously AxisClass),
+	          add ScrollClass, TouchClass
+	* mark some font properties as atoms
+2013-05-21
+	* xkb: add partial support for GetMap, GetNames and GetNamedIndicator
+2013-05-21
+	* Add handling of GetAtomName
 2012-06-01
 	* fix parsing of unusual QueryExtension requests
 2012-01-09

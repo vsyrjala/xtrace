@@ -77,7 +77,12 @@ SetPictureFilter
 # 0.8
 CreateAnimCursor
 # 0.9
-AddTraps	/*32*/
+AddTraps
+# 0.10
+CreateSolidFill
+CreateLinearGradient
+CreateRadialGradient
+CreateConicalGradient /* 36 */
 END
 
 EVENTS
@@ -226,7 +231,14 @@ LIST IndexValue length 12
  10	alpha	CARD16
 END
 
-LIST POINTFIXED length 8
+STRUCT COLOR length 8
+ 0	red	CARD16
+ 2	green	CARD16
+ 4	blue	CARD16
+ 6	alpha	CARD16
+END
+
+STRUCT POINTFIXED length 8
  0	x	FIXED
  4	y	FIXED
 END
@@ -490,10 +502,7 @@ END
 REQUEST FillRectangles
  4	op	PictOp
  8	dst	PICTURE
-12	red	CARD16
-14	green	CARD16
-16	blue	CARD16
-18	alpha	CARD16
+12	color	COLOR
 20	rects	LISTofRECTANGLE
 END
 
@@ -564,6 +573,41 @@ REQUEST AddTraps
  8	x-ofs	INT16
 10	y-ofs	INT16
 12	traps	LISTofTRAP
+END
+
+REQUEST CreateSolidFill
+ 4	picture	PICTURE
+ 8	color	COLOR
+END
+
+REQUEST CreateLinearGradient
+ 4	picture	PICTURE
+ 8	p1	POINTFIXED
+16	p2	POINTFIXED
+24	numStops	COUNT32
+28	stops	LISTofFIXED
+RESET_COUNTER
+LATER	colors	LISTofCOLOR
+END
+
+REQUEST CreateRadialGradient
+ 4	picture	PICTURE
+ 8	inner	POINTFIXED
+16	outer	POINTFIXED
+24	innerRadius	FIXED
+28	outerRadius	FIXED
+32	numStops	COUNT32
+36	stops	LISTofFIXED
+RESET_COUNTER
+LATER	colors	LISTofCOLOR
+END
+
+REQUEST CreateConicalGradient
+ 4	picture	PICTURE
+ 8	center	POINTFIXED
+16	angle	FIXED
+20	numStops	COUNT32
+24	stops	LISTofFIXED
 END
 
 EOF
