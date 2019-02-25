@@ -6,9 +6,9 @@ AC_INIT(xtrace, 1.3.1, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE([-Wall -Werror])
+AM_INIT_AUTOMAKE([-Wall -Werror dist-xz no-dist-gzip])
 
-AM_MAINTAINER_MODE
+AM_MAINTAINER_MODE([enable])
 AC_GNU_SOURCE
 
 if test "${CFLAGS:+set}" != set ; then
