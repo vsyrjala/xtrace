@@ -1,4 +1,4 @@
-xtrace (1.4.0-1) UNRELEASED; urgency=medium
+xtrace (1.4.0-1) unstable; urgency=medium
 
   * new maintenance release
   - add some bugfix and many new definitions
@@ -6,7 +6,7 @@ xtrace (1.4.0-1) UNRELEASED; urgency=medium
   * switch to newer debhelper, dpkg helper scripts
   * drop obsolete homepage, vcs-*, watch information
 
- -- Bernhard R. Link <brlink@debian.org>  Mon, 25 Feb 2019 11:02:42 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 25 Feb 2019 11:12:54 +0100
 
 xtrace (1.3.1-1) unstable; urgency=low
 
