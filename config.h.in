@@ -15,6 +15,9 @@
 /* Define if clock_gettime(CLOCK_MONOTONIC) should work */
 #undef HAVE_MONOTONIC_CLOCK
 
+/* Define if your platform supports sendmsg */
+#undef HAVE_SENDMSG
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -38,6 +41,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the `tdestroy' function. */
+#undef HAVE_TDESTROY
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

@@ -24,4 +24,6 @@ NEEDS "xkb.proto"
 NEEDS "xvideo.proto"
 NEEDS "composite.proto"
 NEEDS "dga.proto"
+NEEDS "dri3.proto"
+NEEDS "present.proto"
 EOF

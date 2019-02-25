@@ -402,9 +402,9 @@ static const char *get_const_token(struct parser *parser, bool optional) {
 					*q++ = *p++;
 				else {
 					*q = *(p++) - '0';
-					if( *p >= '0' || *p <= '7' )
+					if( *p >= '0' && *p <= '7' )
 						*q = *q * 8 +  *(p++) - '0';
-					if( *p >= '0' || *p <= '7' )
+					if( *p >= '0' && *p <= '7' )
 						*q = *q * 8 +  *(p++) - '0';
 					q++;
 				}
@@ -1141,7 +1141,7 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 		}
 		if( strcmp(position, "SIZE") == 0 ) {
 			const char *v;
-			unsigned long t = 1;
+			//unsigned long t = 1;
 
 			v = get_const_token(parser, false);
 			if( v == NULL )
@@ -1180,8 +1180,8 @@ static bool parse_parameters(struct parser *parser, struct variable *variable, b
 				}
 				error(parser, "'TIMES' not yet supported!");
 				continue;
-				v = get_const_token(parser, false);
-				t = parse_number(parser, v);
+				//v = get_const_token(parser, false);
+				//t = parse_number(parser, v);
 			}
 			no_more_arguments(parser);
 			state->sizemarker_set = true;
@@ -1350,7 +1350,7 @@ static void parse_request(struct parser *parser, bool template) {
 		}
 	} else  {
 		if( request == NULL ) {
-			error(parser, "Unknow request '%s'! (Must be listed in REQUESTS or use templateREQUEST", name);
+			error(parser, "Unknown request '%s'! (Must be listed in REQUESTS or use templateREQUEST", name);
 			return;
 		}
 		if( request->request != NULL ) {
@@ -2183,11 +2183,13 @@ bool translate(struct parser *parser, const char *name) {
 	return false;
 }
 
+#ifdef HAVE_TDESTROY
 static void free_varname(void *nodep) {
 	struct varname *vn = nodep;
 	variable_unref(vn->variable);
 	free(vn);
 }
+#endif
 
 bool parser_free(struct parser *parser) {
 	bool success = !parser->error;
@@ -2198,12 +2200,18 @@ bool parser_free(struct parser *parser) {
 		struct namespace *ns = parser->namespaces;
 		parser->namespaces = ns->next;
 		int i;
+#ifdef HAVE_TDESTROY
 		enum variable_type vt;
+#endif
 
 		assert( ns->refcount == 0 );
+#ifdef HAVE_TDESTROY
 		for( vt = 0 ; vt < vt_COUNT ; vt ++ ) {
 			tdestroy(ns->variables[vt], free_varname);
 		}
+#else
+#warning Not freeing some memory as your libc lacks tdestroy
+#endif
 		free(ns->name);
 		free(ns->extension);
 		for( i = 0 ; i < ns->num_requests ; i++ ) {
@@ -2456,6 +2464,9 @@ static const struct request *finalize_requests(struct parser *parser, struct nam
 		} else if( strcmp(rs[i].name, "ListFontsWithInfo") == 0 ) {
 			/* this should be changed to a general approach */
 			rs[i].reply_func = replyListFontsWithInfo;
+		} else if( strcmp(rs[i].name, "GetAtomName") == 0) {
+			rs[i].request_func = requestGetAtomName;
+			rs[i].reply_func = replyGetAtomName;
 		} else {
 			fprintf(stderr, "No specials available for '%s::%s'!\n",
 					ns->name, rs[i].name);

@@ -157,7 +157,7 @@ extern const struct request *requests;
 extern size_t num_requests;
 extern const struct event *events;
 extern size_t num_events;
-extern const const char * const *errors;
+extern const char * const *errors;
 extern size_t num_errors;
 extern const struct extension *extensions;
 extern size_t num_extensions;
@@ -167,8 +167,10 @@ extern const struct parameter *setup_parameters;
 /* special handlers, for the SPECIAL requests/events */
 extern request_func requestQueryExtension;
 extern request_func requestInternAtom;
+extern request_func requestGetAtomName;
 extern reply_func replyListFontsWithInfo;
 extern reply_func replyQueryExtension;
 extern reply_func replyInternAtom;
+extern reply_func replyGetAtomName;
 
 #endif
