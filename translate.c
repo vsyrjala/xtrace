@@ -1350,7 +1350,7 @@ static void parse_request(struct parser *parser, bool template) {
 		}
 	} else  {
 		if( request == NULL ) {
-			error(parser, "Unknow request '%s'! (Must be listed in REQUESTS or use templateREQUEST", name);
+			error(parser, "Unknown request '%s'! (Must be listed in REQUESTS or use templateREQUEST", name);
 			return;
 		}
 		if( request->request != NULL ) {
