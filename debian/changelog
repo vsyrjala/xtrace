@@ -115,7 +115,7 @@ xtrace (0.9.0-1) unstable; urgency=low
   - XINERAMA extension supported
   - RANDR 1.2 support added
   * jump to standard-version 3.7.3 and debhelper 5
-  * move Homepage: from description to headers 
+  * move Homepage: from description to headers
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 08 Dec 2007 20:57:31 +0100
 
