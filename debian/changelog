@@ -3,6 +3,8 @@ xtrace (1.4.0-1) UNRELEASED; urgency=medium
   * new maintenance release
   - add some bugfix and many new definitions
     (Closes: #797174, #797175, #797176, #797177)
+  * switch to newer debhelper, dpkg helper scripts
+  * drop obsolete homepage, vcs-*, watch information
 
  -- Bernhard R. Link <brlink@debian.org>  Mon, 25 Feb 2019 11:02:42 +0100
 
