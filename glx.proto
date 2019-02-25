@@ -53,7 +53,7 @@ glXCreateWindow
 glXDestroyWindow
 glXSetClientInfoARB UNSUPPORTED
 glXCreateContextAttribsARB UNSUPPORTED
-UNKNOWN
+glXSetClientInfo2ARB UNSUPPORTED
 UNKNOWN
 UNKNOWN
 UNKNOWN
@@ -160,7 +160,7 @@ glGetTexLevelParameterfv RESPONDS UNSUPPORTED
 glGetTexLevelParameteriv RESPONDS UNSUPPORTED
 glIsEnabled RESPONDS UNSUPPORTED /* 140 */
 glIsList RESPONDS UNSUPPORTED
-glFlush UNSUPPORTED
+glFlush
 glAreTexturesResident RESPONDS UNSUPPORTED
 glDeleteTextures UNSUPPORTED
 glGenTextures RESPONDS UNSUPPORTED
@@ -1594,6 +1594,11 @@ END
 RESPONSE glGetString
 12	n	COUNT32
 32	string	STRING8
+END
+
+# opcode 142
+REQUEST glFlush
+4	context_tag	CARD32
 END
 
 EVENT PbufferClobber
