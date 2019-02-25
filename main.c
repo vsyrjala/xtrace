@@ -158,7 +158,7 @@ static ssize_t dowrite(int fd, const void *buf, size_t n, struct fdqueue *fdq)
 			char buf[CMSG_SPACE(FDQUEUE_MAX_FD * sizeof(int))];
 		} cmsgbuf;
 		struct iovec iov = {
-			.iov_base = buf,
+			.iov_base = (void*)buf,
 			.iov_len = n,
 		};
 		struct msghdr msg = {
