@@ -219,7 +219,7 @@ static int mainqueue(int listener) {
 				FD_SET(c->client_fd,&exceptfds);
 				if( c->client_fd >= n )
 					n = c->client_fd+1;
-				if( c->serverignore > 0 && c->servercount > 0 || c->serverfdq.nfd > 0 )
+				if( (c->serverignore > 0 && c->servercount > 0) || c->serverfdq.nfd > 0 )
 					FD_SET(c->client_fd,&writefds);
 			} else if( c->server_fd != -1 && c->clientcount == 0 && c->clientfdq.nfd == 0 ) {
 				close(c->server_fd);
@@ -233,7 +233,7 @@ static int mainqueue(int listener) {
 				FD_SET(c->server_fd,&exceptfds);
 				if( c->server_fd >= n )
 					n = c->server_fd+1;
-				if( (c->clientignore > 0 && c->clientcount > 0 || c->clientfdq.nfd > 0)
+				if( ((c->clientignore > 0 && c->clientcount > 0) || c->clientfdq.nfd > 0)
 						&& allowsent > 0)
 					FD_SET(c->server_fd,&writefds);
 

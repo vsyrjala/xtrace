@@ -157,7 +157,7 @@ extern const struct request *requests;
 extern size_t num_requests;
 extern const struct event *events;
 extern size_t num_events;
-extern const const char * const *errors;
+extern const char * const *errors;
 extern size_t num_errors;
 extern const struct extension *extensions;
 extern size_t num_extensions;

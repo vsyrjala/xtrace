@@ -803,12 +803,14 @@ static size_t printLISTofVALUE(struct connection *c,const uint8_t *buffer,size_t
 		 case ft_ENUM8:
 			 if( constant == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD8:
 			 fprintf(out,"0x%02x",(unsigned int)u8);
 			 break;
 		 case ft_ENUM16:
 			 if( constant == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD16:
 			 fprintf(out,"0x%04x",(unsigned int)u16);
 			 break;
@@ -821,6 +823,7 @@ static size_t printLISTofVALUE(struct connection *c,const uint8_t *buffer,size_t
 		 case ft_ENUM32:
 			 if( constant == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD32:
 			 fprintf(out,"0x%08x",(unsigned int)u32);
 			 break;
@@ -1366,18 +1369,21 @@ static size_t print_parameters(struct connection *c, const unsigned char *buffer
 		 case ft_ENUM8:
 			 if( value == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD8:
 			 fprintf(out,"0x%02x",(unsigned int)u8);
 			 break;
 		 case ft_ENUM16:
 			 if( value == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD16:
 			 fprintf(out,"0x%04x",(unsigned int)u16);
 			 break;
 		 case ft_ENUM32:
 			 if( value == NULL )
 				 fputs("unknown:",out);
+			 __attribute__ ((fallthrough));
 		 case ft_CARD32:
 			 fprintf(out,"0x%08x",(unsigned int)u32);
 			 break;
