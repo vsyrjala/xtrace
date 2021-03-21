@@ -95,7 +95,7 @@ NAMESPACE core
 
 REQUESTS
 UNKNOWN
-CreateWindow
+CreateWindow SPECIAL
 ChangeWindowAttributes
 GetWindowAttributes RESPONDS
 DestroyWindow

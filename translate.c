@@ -2453,6 +2453,8 @@ static const struct request *finalize_requests(struct parser *parser, struct nam
 			fprintf(stderr, "No specials available in namespace '%s'!\n",
 					ns->name);
 			parser->error = true;
+		} else if( strcmp(rs[i].name, "CreateWindow") == 0 ) {
+			rs[i].request_func = requestCreateWindow;
 		} else if( strcmp(rs[i].name, "QueryExtension") == 0 ) {
 			rs[i].request_func = requestQueryExtension;
 			rs[i].reply_func = replyQueryExtension;

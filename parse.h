@@ -165,6 +165,7 @@ extern const struct parameter *unexpected_reply;
 extern const struct parameter *setup_parameters;
 
 /* special handlers, for the SPECIAL requests/events */
+extern request_func requestCreateWindow;
 extern request_func requestQueryExtension;
 extern request_func requestInternAtom;
 extern request_func requestGetAtomName;

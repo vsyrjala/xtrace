@@ -1497,6 +1497,78 @@ bool requestQueryExtension(struct connection *c, bool pre, bool bigrequest UNUSE
 	return false;
 }
 
+static struct win {
+	uint16_t window;
+	uint16_t class;
+	uint16_t visual;
+	uint8_t depth;
+} windows[1024];
+
+static struct win *find_window(uint16_t window)
+{
+	for (int i = 0; i < 1024; i++) {
+		if (windows[i].window == window)
+			return &windows[i];
+	}
+	return &windows[0];
+}
+
+static void store_window(uint16_t window,
+			 uint16_t class,
+			 uint16_t visual,
+			 uint8_t depth)
+{
+	static int last = 0;
+	struct win *w = find_window(window);
+
+	if (!w) {
+		w = &windows[last];
+		last = (last + 1) % 1024;
+	}
+
+	w->window = window;
+	w->class = class;
+	w->visual = visual;
+	w->depth = depth;
+}
+
+bool requestCreateWindow(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
+	uint16_t window, parent, class, visual;
+	uint8_t depth;
+	size_t len;
+
+	if( pre )
+		return false;
+	if( reply != NULL)
+		return false;
+	if( c->clientignore <= 1 )
+		return false;
+
+	depth = clientCARD8(1);
+	window = clientCARD16(4);
+	parent = clientCARD16(8);
+	class = clientCARD16(22);
+	visual = clientCARD16(24);
+
+	/* try to deal with CopyFromParent */
+	if (class == 0)
+		class = find_window(parent)->class;
+	if (visual == 0)
+		visual = find_window(parent)->visual;
+
+	if (class != 2 && /* don't touch InputOnly windows */
+	    (depth == 0 || depth == 24)) {
+		fprintf(stderr, "Rewriting depth %d->%d for window 0x%08x\n",
+			depth, 30, window);
+		depth = 30;
+		clientCARD8(1) = depth;
+	}
+
+	store_window(window, class, visual, depth);
+
+	return false;
+}
+
 bool requestInternAtom(struct connection *c, bool pre, bool bigrequest UNUSED, struct expectedreply *reply) {
 	uint16_t len;
 	if( pre )
